@@ -1,0 +1,205 @@
+<html lang="de"><head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dual Kamera + Alarm</title>
+<style>
+body {margin:0; font-family:'Segoe UI', Roboto, Arial,sans-serif; background:#000; color:#fff; display:flex; flex-direction:column; height:100vh;}
+header {display:flex; justify-content:space-between; align-items:center; padding:10px 20px; background:#111; border-bottom:2px solid #444;}
+header strong {font-size:1.5em;}
+.controls {display:flex; flex-wrap:wrap; gap:10px; align-items:center;}
+select, button, input[type=time], input[type=checkbox] {
+  padding:6px 10px; border-radius:8px; border:none; background:#222; color:#fff; cursor:pointer; font-weight:bold;
+}
+select:hover, button:hover, input[type=time]:hover, input[type=checkbox]:hover { background:#333; }
+main {flex:1; display:flex; gap:12px; padding:12px; justify-content:center; align-items:center;}
+.video-wrap {flex:1; border:2px solid #fff; border-radius:12px; overflow:hidden; background:#000; display:flex; justify-content:center; align-items:center; min-width:200px;}
+video {width:100%; height:100%; object-fit:cover;}
+.clock-small {position:fixed; bottom:20px; left:50%; transform:translateX(-50%); font-size:3em; padding:10px 20px; border:2px solid #fff; border-radius:12px; background:rgba(0,0,0,0.6);}
+.alarm-overlay {position:fixed; inset:0; display:none; justify-content:center; align-items:center; background:rgba(0,0,0,0.7); z-index:1000; flex-direction:column;}
+.alarm-overlay.show {display:flex;}
+.alarm-time {color:red; font-size:12vw; font-weight:900; text-align:center; animation:blink 1s steps(2) infinite; text-shadow:0 0 20px red; margin-bottom:20px;}
+@keyframes blink {50%{opacity:0}}
+#alarm-settings {position:fixed; top:70px; right:20px; background:#111; padding:15px; border-radius:12px; border:2px solid #fff; max-width:300px; z-index:100;}
+#alarm-settings label {display:block; margin:5px 0;}
+#okBtn {padding:10px 20px; border-radius:12px; border:none; background:red; color:#fff; font-size:1.2em; cursor:pointer; font-weight:bold;}
+</style>
+</head>
+<body>
+
+<header>
+  <strong>Dual Kamera Anzeige</strong>
+  <div class="controls">
+    <label for="cam1">Kamera 1:</label>
+    <select id="cam1"></select>
+    <label for="cam2">Kamera 2:</label>
+    <select id="cam2"></select>
+    <button id="refreshBtn">Aktualisieren</button>
+    <button id="startBtn">Start</button>
+    <button id="stopBtn" disabled="">Stop</button>
+    <button id="muteBtn">Ton an</button>
+    <button id="testBtn">Lautsprecher testen</button>
+  </div>
+</header>
+
+<main>
+  <div class="video-wrap"><video id="video1" autoplay="" playsinline=""></video></div>
+  <div class="video-wrap"><video id="video2" autoplay="" playsinline=""></video></div>
+</main>
+
+<div class="clock-small" id="smallClock">--:--:--</div>
+
+<div class="alarm-overlay" id="alarmOverlay">
+  <div class="alarm-time" id="alarmTime">00:00:00</div>
+  <button id="okBtn">OK</button>
+</div>
+
+<div id="alarm-settings">
+  <strong>Alarmzeiten einstellen</strong>
+  <div id="alarm-list"></div>
+  <label>Neue Alarmzeit:
+    <input type="time" id="newAlarmTime">
+  </label>
+  <label>
+    <input type="checkbox" class="day-checkbox" value="0"> Sonntag
+    <input type="checkbox" class="day-checkbox" value="1"> Montag
+    <input type="checkbox" class="day-checkbox" value="2"> Dienstag
+    <input type="checkbox" class="day-checkbox" value="3"> Mittwoch
+    <input type="checkbox" class="day-checkbox" value="4"> Donnerstag
+    <input type="checkbox" class="day-checkbox" value="5"> Freitag
+    <input type="checkbox" class="day-checkbox" value="6"> Samstag
+  </label>
+  <button id="addAlarmBtn">Hinzufügen</button>
+</div>
+
+<audio id="alarmSound" src="https://orangefreesounds.com/wp-content/uploads/2025/03/Retro-digital-alarm-clock-beep-sound-effect.mp3" preload="auto"></audio>
+
+<script>
+const cam1Select=document.getElementById('cam1');
+const cam2Select=document.getElementById('cam2');
+const startBtn=document.getElementById('startBtn');
+const stopBtn=document.getElementById('stopBtn');
+const muteBtn=document.getElementById('muteBtn');
+const refreshBtn=document.getElementById('refreshBtn');
+const testBtn=document.getElementById('testBtn');
+const video1=document.getElementById('video1');
+const video2=document.getElementById('video2');
+const smallClock=document.getElementById('smallClock');
+const alarmOverlay=document.getElementById('alarmOverlay');
+const alarmTimeEl=document.getElementById('alarmTime');
+const okBtn=document.getElementById('okBtn');
+const alarmSound=document.getElementById('alarmSound');
+const alarmListDiv=document.getElementById('alarm-list');
+const newAlarmTime=document.getElementById('newAlarmTime');
+const addAlarmBtn=document.getElementById('addAlarmBtn');
+
+let stream1=null,stream2=null;
+let soundEnabled=true;
+let alarmActive=false;
+let alarmTimeout=null;
+let alarms=[]; // {time:"HH:MM", days:[0-6]}
+
+async function ensurePermissions(){ try{ await navigator.mediaDevices.getUserMedia({video:true}); }catch(e){console.warn(e);} }
+
+async function listCameras(){
+  const devices=await navigator.mediaDevices.enumerateDevices();
+  const cams=devices.filter(d=>d.kind==='videoinput');
+  [cam1Select,cam2Select].forEach(s=>{
+    s.innerHTML='';
+    cams.forEach((c,i)=>{
+      const opt=document.createElement('option');
+      opt.value=c.deviceId;
+      opt.textContent=c.label||`Kamera ${i+1}`;
+      s.appendChild(opt);
+    });
+  });
+}
+
+function stopStream(s){ if(!s) return; s.getTracks().forEach(t=>t.stop()); }
+
+async function startStreams(){
+  const id1=cam1Select.value,id2=cam2Select.value;
+  stopStream(stream1); stopStream(stream2);
+  try{
+    if(id1){ stream1=await navigator.mediaDevices.getUserMedia({video:{deviceId:{exact:id1}}}); video1.srcObject=stream1; }
+    if(id2){ stream2=(id1===id2 && stream1)?stream1.clone():await navigator.mediaDevices.getUserMedia({video:{deviceId:{exact:id2}}}); video2.srcObject=stream2; }
+    startBtn.disabled=true; stopBtn.disabled=false;
+  }catch(e){ alert('Fehler beim Starten: '+e.message); }
+}
+
+function stopAll(){
+  stopStream(stream1); stopStream(stream2); video1.srcObject=null; video2.srcObject=null;
+  startBtn.disabled=false; stopBtn.disabled=true;
+  if(alarmActive) stopAlarm();
+}
+
+function two(n){ return n.toString().padStart(2,'0'); }
+
+function updateClock(){
+  const now=new Date();
+  const h=two(now.getHours()), m=two(now.getMinutes()), s=two(now.getSeconds());
+  smallClock.textContent=`${h}:${m}:${s}`;
+
+  alarms.forEach(a=>{
+    const day=new Date().getDay();
+    if(!a.days.includes(day)) return;
+    const [ah, am] = a.time.split(":").map(Number);
+    const start=new Date(); start.setHours(ah, am, 0, 0);
+    const end=new Date(start.getTime()+7000); // Overlay 1 Minute
+    if(now>=start && now<=end){
+      alarmTimeEl.textContent=`${h}:${m}:${s}`;
+      if(!alarmActive) startAlarm();
+    }
+  });
+}
+
+function startAlarm(){
+  alarmActive=true;
+  alarmOverlay.classList.add('show');
+  if(soundEnabled){
+    alarmSound.currentTime=0;
+    alarmSound.play();
+    alarmTimeout=setTimeout(()=>{ stopAlarm(); },15000);
+  }
+}
+
+function stopAlarm(){
+  alarmOverlay.classList.remove('show');
+  alarmSound.pause(); alarmSound.currentTime=0;
+  if(alarmTimeout){ clearTimeout(alarmTimeout); alarmTimeout=null; }
+  alarmActive=false;
+}
+
+startBtn.addEventListener('click', startStreams);
+stopBtn.addEventListener('click', stopAll);
+refreshBtn.addEventListener('click', listCameras);
+muteBtn.addEventListener('click',()=>{ soundEnabled=!soundEnabled; muteBtn.textContent=soundEnabled?'Ton an':'Ton aus'; if(!soundEnabled) stopAlarm(); });
+testBtn.addEventListener('click',()=>{ alarmOverlay.classList.add('show'); alarmSound.currentTime=0; alarmSound.play(); setTimeout(()=>{ stopAlarm(); },15000); });
+okBtn.addEventListener('click', stopAlarm);
+
+// Alarm hinzufügen
+addAlarmBtn.addEventListener('click', ()=>{
+  const time=newAlarmTime.value;
+  if(!time) return;
+  const days=[...document.querySelectorAll(".day-checkbox:checked")].map(cb=>parseInt(cb.value));
+  if(days.length===0) { alert("Bitte mindestens einen Tag wählen"); return; }
+  alarms.push({time, days});
+  renderAlarms();
+});
+
+// Alarmliste anzeigen
+function renderAlarms(){
+  alarmListDiv.innerHTML="";
+  alarms.forEach((a,i)=>{
+    const div=document.createElement("div");
+    div.textContent=`${a.time} - Tage: ${a.days.map(d=>["So","Mo","Di","Mi","Do","Fr","Sa"][d]).join(", ")}`;
+    const del=document.createElement("button"); del.textContent="✖"; del.style.marginLeft="8px"; del.onclick=()=>{ alarms.splice(i,1); renderAlarms(); };
+    div.appendChild(del); alarmListDiv.appendChild(div);
+  });
+}
+
+(async()=>{ await ensurePermissions(); await listCameras(); setInterval(updateClock,300); })();
+</script>
+
+
+
+</body></html>

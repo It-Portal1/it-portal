@@ -1,0 +1,139 @@
+<html lang="de"><head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Bald kommt was Großes | powered by Jona</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@600&family=Poppins:wght@400;600&display=swap');
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      height: 100vh;
+      background: radial-gradient(circle at center, #050505 0%, #000 100%);
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      color: #fff;
+      font-family: 'Orbitron', sans-serif;
+      text-align: center;
+    }
+
+    /* Hintergrund-Partikel */
+    .stars {
+      position: absolute;
+      width: 100%;
+      height: 100%;
+      background: transparent url('https://www.transparenttextures.com/patterns/stardust.png') repeat;
+      animation: starsMove 60s linear infinite;
+      opacity: 0.2;
+      z-index: 0;
+    }
+
+    @keyframes starsMove {
+      from { background-position: 0 0; }
+      to { background-position: 10000px 10000px; }
+    }
+
+    h1 {
+      font-size: 3.5rem;
+      text-transform: uppercase;
+      letter-spacing: 4px;
+      color: #00eaff;
+      text-shadow: 0 0 20px #00eaff, 0 0 50px #0099ff;
+      animation: pulse 3s infinite alternate;
+      z-index: 2;
+    }
+
+    h2 {
+      font-size: 1.6rem;
+      color: #ff00c8;
+      margin-top: 10px;
+      text-shadow: 0 0 15px #ff00c8, 0 0 40px #ff00c8;
+      z-index: 2;
+    }
+
+    p {
+      font-family: 'Poppins', sans-serif;
+      font-size: 1.1rem;
+      color: #ccc;
+      margin-top: 20px;
+      z-index: 2;
+      max-width: 600px;
+    }
+
+    /* Neuer cooler Ladekreis */
+    .loader {
+      margin-top: 50px;
+      width: 140px;
+      height: 140px;
+      border-radius: 50%;
+      background: conic-gradient(
+        from 0deg,
+        #00eaff 0deg,
+        #ff00c8 120deg,
+        transparent 240deg
+      );
+      animation: spin 2s linear infinite;
+      position: relative;
+      box-shadow: 0 0 35px #00eaff;
+      z-index: 2;
+    }
+
+    /* Innenkreis */
+    .loader::before {
+      content: '';
+      position: absolute;
+      top: 15px;
+      left: 15px;
+      width: 110px;
+      height: 110px;
+      background: #000;
+      border-radius: 50%;
+      box-shadow: inset 0 0 30px rgba(255,255,255,0.1);
+    }
+
+    footer {
+      position: absolute;
+      bottom: 20px;
+      font-size: 0.9rem;
+      font-family: 'Poppins', sans-serif;
+      opacity: 0.6;
+      letter-spacing: 1px;
+      z-index: 2;
+    }
+
+    /* Animationen */
+    @keyframes pulse {
+      0% { text-shadow: 0 0 15px #00eaff, 0 0 30px #0099ff; }
+      100% { text-shadow: 0 0 30px #00eaff, 0 0 60px #00eaff; }
+    }
+
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+  </style>
+</head>
+<body>
+  <div class="stars"></div>
+
+  <h1>🚀 Bald kommt was Großes</h1>
+  <h2>Etwas völlig Neues entsteht...</h2>
+  <p>Diese Seite ist noch im Aufbau.<br>
+     In ein paar Tagen oder Wochen wird hier etwas richtig <strong>Episches</strong> online gehen.<br>
+     Bleib gespannt – du wirst überrascht sein 😎</p>
+
+  <div class="loader"></div>
+
+  <footer>powered by Jona Snoek</footer>
+
+
+
+
+
+
+
+
+</body></html>

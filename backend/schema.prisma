@@ -1,0 +1,137 @@
+// Prisma Schema für das IT Portal
+// Definiert alle Datenbankmodelle: User, Role, Permission, Tool, Session
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+// Verfügbare Berechtigungen im System
+enum Permission {
+  VIEW_TOOLS    // Tools anzeigen
+  USE_TOOLS     // Tools nutzen/öffnen
+  CREATE_TOOLS  // Tools erstellen
+  EDIT_TOOLS    // Tools bearbeiten
+  DELETE_TOOLS  // Tools löschen
+  MANAGE_USERS  // Benutzer verwalten
+}
+
+// Tool-Typ: externer Link oder gehostete HTML-Datei
+enum ToolType {
+  EXTERNAL_LINK
+  HTML_FILE
+}
+
+// Sichtbarkeit eines Tools
+enum ToolVisibility {
+  PUBLIC      // Für alle eingeloggten Benutzer sichtbar
+  ROLE_BASED  // Nur für bestimmte Rollen
+  USER_BASED  // Nur für bestimmte Benutzer
+}
+
+// Benutzermodell
+model User {
+  id           String   @id @default(uuid())
+  username     String   @unique
+  email        String   @unique
+  passwordHash         String
+  requirePasswordChange Boolean @default(false)
+  isAdmin              Boolean  @default(false)
+  isActive             Boolean  @default(true)
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  // Beziehungen
+  role              Role?              @relation(fields: [roleId], references: [id])
+  roleId            String?
+  userPermissions   UserPermission[]   // Individuelle Berechtigungen
+  toolAccess        ToolUserAccess[]   // Direkter Zugriff auf Tools
+  refreshTokens     RefreshToken[]
+}
+
+// Rollenmodell (z.B. "Admin", "IT-Team", "Standard-User")
+model Role {
+  id          String           @id @default(uuid())
+  name        String           @unique
+  description String?
+  permissions RolePermission[] // Berechtigungen der Rolle (MySQL-kompatibel)
+  createdAt   DateTime         @default(now())
+
+  users       User[]
+  toolAccess  ToolRoleAccess[]
+}
+
+// Berechtigungen für Rollen (Join-Table für MySQL)
+model RolePermission {
+  id         String     @id @default(uuid())
+  permission Permission
+  role       Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  roleId     String
+
+  @@unique([roleId, permission])
+}
+
+// Individuelle Berechtigungen für einzelne Benutzer
+model UserPermission {
+  id         String     @id @default(uuid())
+  permission Permission
+  user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId     String
+
+  @@unique([userId, permission])
+}
+
+// Tool-Modell
+model Tool {
+  id          String         @id @default(uuid())
+  name        String         @unique
+  slug        String         @unique // URL-freundlicher Name
+  description String?
+  icon        String?        // URL oder Icon-Name
+  type        ToolType
+  url         String?        // Für EXTERNAL_LINK
+  filePath    String?        // Für HTML_FILE (relativer Pfad)
+  visibility  ToolVisibility @default(PUBLIC)
+  isActive    Boolean        @default(true)
+  isLocked    Boolean        @default(false)
+  sortOrder   Int            @default(0)
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  roleAccess  ToolRoleAccess[]
+  userAccess  ToolUserAccess[]
+}
+
+// Rollen-basierter Tool-Zugriff
+model ToolRoleAccess {
+  tool   Tool   @relation(fields: [toolId], references: [id], onDelete: Cascade)
+  toolId String
+  role   Role   @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  roleId String
+
+  @@id([toolId, roleId])
+}
+
+// Benutzer-basierter Tool-Zugriff
+model ToolUserAccess {
+  tool   Tool   @relation(fields: [toolId], references: [id], onDelete: Cascade)
+  toolId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId String
+
+  @@id([toolId, userId])
+}
+
+// JWT Refresh Tokens
+model RefreshToken {
+  id        String   @id @default(uuid())
+  token     String   @unique
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+}

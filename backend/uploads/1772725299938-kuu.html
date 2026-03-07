@@ -1,0 +1,80 @@
+<html lang="de"><head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dual Kamera + Alarm</title>
+<style>
+body {margin:0; font-family:'Segoe UI', Roboto, Arial,sans-serif; background:#000; color:#fff; display:flex; flex-direction:column; height:100vh;}
+header {display:flex; justify-content:space-between; align-items:center; padding:10px 20px; background:#111; border-bottom:2px solid #444;}
+header strong {font-size:1.5em;}
+.controls {display:flex; flex-wrap:wrap; gap:10px; align-items:center;}
+select, button, input[type=time], input[type=checkbox] {
+  padding:6px 10px; border-radius:8px; border:none; background:#222; color:#fff; cursor:pointer; font-weight:bold;
+}
+select:hover, button:hover, input[type=time]:hover, input[type=checkbox]:hover { background:#333; }
+main {flex:1; display:flex; gap:12px; padding:12px; justify-content:center; align-items:center;}
+.video-wrap {flex:1; border:2px solid #fff; border-radius:12px; overflow:hidden; background:#000; display:flex; justify-content:center; align-items:center; min-width:200px;}
+video {width:100%; height:100%; object-fit:cover;}
+.clock-small {position:fixed; bottom:20px; left:50%; transform:translateX(-50%); font-size:3em; padding:10px 20px; border:2px solid #fff; border-radius:12px; background:rgba(0,0,0,0.6);}
+.alarm-overlay {position:fixed; inset:0; display:none; justify-content:center; align-items:center; background:rgba(0,0,0,0.7); z-index:1000; flex-direction:column;}
+.alarm-overlay.show {display:flex;}
+.alarm-time {color:red; font-size:12vw; font-weight:900; text-align:center; animation:blink 1s steps(2) infinite; text-shadow:0 0 20px red; margin-bottom:20px;}
+@keyframes blink {50%{opacity:0}}
+#alarm-settings {position:fixed; top:70px; right:20px; background:#111; padding:15px; border-radius:12px; border:2px solid #fff; max-width:300px; z-index:100;}
+#alarm-settings label {display:block; margin:5px 0;}
+#okBtn {padding:10px 20px; border-radius:12px; border:none; background:red; color:#fff; font-size:1.2em; cursor:pointer; font-weight:bold;}
+</style>
+</head>
+<body>
+
+<header>
+  <strong>Dual Kamera Anzeige</strong>
+  <div class="controls">
+    <label for="cam1">Kamera 1:</label>
+    <select id="cam1"></select>
+    <label for="cam2">Kamera 2:</label>
+    <select id="cam2"></select>
+    <button id="refreshBtn">Aktualisieren</button>
+    <button id="startBtn">Start</button>
+    <button id="stopBtn" disabled="">Stop</button>
+    <button id="muteBtn">Ton an</button>
+    <button id="testBtn">Lautsprecher testen</button>
+  </div>
+</header>
+
+<main>
+  <div class="video-wrap"><video id="video1" autoplay="" playsinline=""></video></div>
+  <div class="video-wrap"><video id="video2" autoplay="" playsinline=""></video></div>
+</main>
+
+<div class="clock-small" id="smallClock">--:--:--</div>
+
+<div class="alarm-overlay" id="alarmOverlay">
+  <div class="alarm-time" id="alarmTime">00:00:00</div>
+  <button id="okBtn">OK</button>
+</div>
+
+<div id="alarm-settings">
+  <strong>Alarmzeiten einstellen</strong>
+  <div id="alarm-list"></div>
+  <label>Neue Alarmzeit:
+    <input type="time" id="newAlarmTime">
+  </label>
+  <label>
+    <input type="checkbox" class="day-checkbox" value="0"> Sonntag
+    <input type="checkbox" class="day-checkbox" value="1"> Montag
+    <input type="checkbox" class="day-checkbox" value="2"> Dienstag
+    <input type="checkbox" class="day-checkbox" value="3"> Mittwoch
+    <input type="checkbox" class="day-checkbox" value="4"> Donnerstag
+    <input type="checkbox" class="day-checkbox" value="5"> Freitag
+    <input type="checkbox" class="day-checkbox" value="6"> Samstag
+  </label>
+  <button id="addAlarmBtn">Hinzufügen</button>
+</div>
+
+<audio id="alarmSound" src="https://orangefreesounds.com/wp-content/uploads/2025/03/Retro-digital-alarm-clock-beep-sound-effect.mp3" preload="auto"></audio>
+
+
+
+
+
+</body></html>
