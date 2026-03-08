@@ -11,7 +11,7 @@ Ein modernes, sicheres Portal für Schul-IT-Teams zur Verwaltung von Tools und B
 ### 2. Datenbank starten
 Führe im Hauptverzeichnis aus:
 ```bash
-docker-compose up -d
+docker compose up -d
 ```
 
 ### 3. Backend einrichten

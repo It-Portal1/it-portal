@@ -2,13 +2,16 @@
  * IT Portal Backend – Main Server Entry Point
  * Konfiguriert Express App mit allen Middlewares und Routen
  */
+import dotenv from 'dotenv';
+// WICHTIG: .env muss geladen werden, BEVOR andere Module (wie Prisma) importiert werden!
+dotenv.config();
+
 import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import cookieParser from 'cookie-parser';
 import path from 'path';
 import fs from 'fs';
-import dotenv from 'dotenv';
 import bcrypt from 'bcryptjs';
 import { Permission } from '@prisma/client';
 import prisma from './lib/prisma';
@@ -20,8 +23,6 @@ import toolsRouter from './routes/tools';
 import hostedRouter from './routes/hosted';
 import settingsRouter from './routes/settings';
 import { loginRateLimiter } from './middleware/rateLimiter';
-
-dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 5000;
