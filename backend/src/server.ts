@@ -96,6 +96,14 @@ app.use('/api/roles', rolesRouter);
 app.use('/api/tools', toolsRouter);
 app.use('/api/settings', settingsRouter);
 
+// ─── Fallback für Nginx (falls /api Prefix entfernt wird) ─────────────────────
+app.use('/auth/login', loginRateLimiter);
+app.use('/auth', authRouter);
+app.use('/users', usersRouter);
+app.use('/roles', rolesRouter);
+app.use('/tools', toolsRouter);
+app.use('/settings', settingsRouter);
+
 // ─── Health Check ────────────────────────────────────────────────────────────
 app.get('/api/health', (_req, res) => {
     res.json({ status: 'ok', timestamp: new Date().toISOString() });
