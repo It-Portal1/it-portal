@@ -145,6 +145,7 @@ async function ensureAdminUser() {
         console.log('└──────────────────────────────────────────────────────┘\n');
     } catch (error) {
         console.error('⚠️ Konnte Admin-User nicht verifizieren:', error);
+        console.error('\n👉 TIPP: Läuft die Datenbank? Führe "docker compose up -d" im Hauptverzeichnis aus.\n');
     }
 }
 
