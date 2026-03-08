@@ -45,8 +45,8 @@ app.use(helmet({
 // CORS – Erlaubte Origins definieren
 const allowedOrigins = [
     'http://localhost:3000',
-    'http://192.168.2.109:3000', // Dev Server über IP
-    'http://192.168.2.109',      // Nginx / Produktion
+    'http://192.168.2.110:3000', // Dev Server über IP
+    'http://192.168.2.110',      // Nginx / Produktion
     process.env.FRONTEND_URL     // Aus .env Datei
 ].filter(Boolean) as string[];
 

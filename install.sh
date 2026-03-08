@@ -54,12 +54,12 @@ DATABASE_URL="postgresql://postgres:password@127.0.0.1:5432/itportal?schema=publ
 PORT=5000
 JWT_SECRET="change-this-secret-in-production"
 REFRESH_TOKEN_SECRET="change-this-refresh-secret-in-production"
-FRONTEND_URL="http://192.168.2.109:3000"
+FRONTEND_URL="http://192.168.2.110:3000"
 EOF
 
 # Frontend .env.local
 cat > $PROJECT_DIR/frontend/.env.local << EOF
-NEXT_PUBLIC_API_URL="http://192.168.2.109:5000/api"
+NEXT_PUBLIC_API_URL="http://192.168.2.110:5000/api"
 EOF
 
 # 5. Backend einrichten
@@ -95,7 +95,7 @@ NGINX_CONF="/etc/nginx/sites-available/it-portal"
 sudo bash -c "cat > $NGINX_CONF" << 'EOF'
 server {
     listen 80;
-    server_name 192.168.2.109;
+    server_name 192.168.2.110;
 
     # Frontend
     location / {
