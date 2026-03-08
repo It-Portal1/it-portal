@@ -146,6 +146,7 @@ async function ensureAdminUser() {
     } catch (error) {
         console.error('⚠️ Konnte Admin-User nicht verifizieren:', error);
         console.error('\n👉 TIPP: Läuft die Datenbank? Führe "docker compose up -d" im Hauptverzeichnis aus.\n');
+        console.error('👉 TIPP: Sind die Tabellen erstellt? Führe "npx prisma db push" im backend-Ordner aus.\n');
     }
 }
 

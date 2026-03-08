@@ -16,10 +16,15 @@ echo -e "${GREEN}Starte IT Portal Installation...${NC}"
 echo -e "${GREEN}[1/8] System aktualisieren...${NC}"
 sudo apt update && sudo apt upgrade -y
 
-# 2. Node.js und Nginx installieren
-echo -e "${GREEN}[2/8] Abhängigkeiten installieren (Node.js, Nginx, PostgreSQL-Client)...${NC}"
+# 2. Node.js, Nginx und Docker installieren
+echo -e "${GREEN}[2/8] Abhängigkeiten installieren (Node.js, Nginx, PostgreSQL-Client, Docker)...${NC}"
 curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
-sudo apt-get install -y nodejs nginx git postgresql-client
+sudo apt-get install -y nodejs nginx git postgresql-client docker.io docker-compose-v2
+
+# Docker starten und aktivieren
+sudo systemctl enable --now docker
+# Aktuellen User zur Docker-Gruppe hinzufügen
+sudo usermod -aG docker $USER
 
 # 3. PM2 Prozessmanager installieren
 echo -e "${GREEN}[3/8] PM2 installieren...${NC}"
@@ -61,6 +66,12 @@ EOF
 echo -e "${GREEN}[5/8] Backend konfigurieren...${NC}"
 cd $PROJECT_DIR/backend
 npm install
+
+# Datenbank initialisieren (Tabellen erstellen & Seed)
+echo -e "${GREEN}Initialisiere Datenbank...${NC}"
+npx prisma db push
+npm run seed
+
 npm run build
 # PM2 für Backend starten
 pm2 start dist/server.js --name "it-portal-backend"
@@ -127,6 +138,5 @@ sudo systemctl restart nginx
 echo -e "${GREEN}==============================================${NC}"
 echo -e "${GREEN}Installation abgeschlossen!${NC}"
 echo -e "Wichtige nächste Schritte manuell:"
-echo -e "1. Führe im Backend-Ordner 'npx prisma db push' aus, um die Datenbank zu initialisieren."
-echo -e "2. Starte die PM2 Prozesse neu: 'pm2 restart all'"
+echo -e "1. Starte die PM2 Prozesse neu, falls nötig: 'pm2 restart all'"
 echo -e "${GREEN}==============================================${NC}"
