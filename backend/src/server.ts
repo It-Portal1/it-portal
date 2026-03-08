@@ -47,6 +47,8 @@ const allowedOrigins = [
     'http://localhost:3000',
     'http://192.168.2.110:3000', // Dev Server über IP
     'http://192.168.2.110',      // Nginx / Produktion
+    'http://it-portal.jona-s.com',
+    'https://it-portal.jona-s.com',
     process.env.FRONTEND_URL     // Aus .env Datei
 ].filter(Boolean) as string[];
 
