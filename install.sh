@@ -87,7 +87,8 @@ pm2 start npm --name "it-portal-frontend" -- run start
 # 7. PM2 Autostart konfigurieren
 echo -e "${GREEN}[7/8] PM2 Autostart nach Server-Reboot einrichten...${NC}"
 pm2 save
-sudo env PATH=$PATH:/usr/bin /usr/lib/node_modules/pm2/bin/pm2 startup systemd -u $USER --hp $HOME
+# Hinweis: PM2 Startup muss oft manuell bestätigt werden.
+pm2 startup
 
 # 8. Nginx Reverse Proxy Einrichtung
 echo -e "${GREEN}[8/8] Nginx konfigurieren...${NC}"
