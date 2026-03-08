@@ -17,9 +17,9 @@ echo -e "${GREEN}[1/8] System aktualisieren...${NC}"
 sudo apt update && sudo apt upgrade -y
 
 # 2. Node.js und Nginx installieren
-echo -e "${GREEN}[2/8] Abhängigkeiten installieren (Node.js, Nginx, MySQL-Client)...${NC}"
+echo -e "${GREEN}[2/8] Abhängigkeiten installieren (Node.js, Nginx, PostgreSQL-Client)...${NC}"
 curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
-sudo apt-get install -y nodejs nginx git mysql-client
+sudo apt-get install -y nodejs nginx git postgresql-client
 
 # 3. PM2 Prozessmanager installieren
 echo -e "${GREEN}[3/8] PM2 installieren...${NC}"
@@ -67,7 +67,7 @@ NGINX_CONF="/etc/nginx/sites-available/it-portal"
 sudo bash -c "cat > $NGINX_CONF" << 'EOF'
 server {
     listen 80;
-    server_name DEINE_DOMAIN_ODER_IP;
+    server_name 192.168.2.109;
 
     # Frontend
     location / {
@@ -110,9 +110,11 @@ sudo systemctl restart nginx
 echo -e "${GREEN}==============================================${NC}"
 echo -e "${GREEN}Installation abgeschlossen!${NC}"
 echo -e "Wichtige nächste Schritte manuell:"
-echo -e "1. Erstelle die Datei ${PROJECT_DIR}/backend/.env mit deinen MySQL Verbindungsdaten."
-echo -e "2. Führe im Backend-Ordner 'npx prisma db push' aus, um die Datenbank zu erstellen."
-echo -e "3. Führe im Backend-Ordner 'npm run seed' aus, um den Admin-User zu erstellen."
-echo -e "4. Ersetze in /etc/nginx/sites-available/it-portal den Eintrag 'DEINE_DOMAIN_ODER_IP' mit deiner echten IP oder Domain."
-echo -e "5. Starte Nginx neu mit 'sudo systemctl restart nginx'"
+echo -e "1. Erstelle die Datei ${PROJECT_DIR}/backend/.env und trage die URLs ein:"
+echo -e '   DATABASE_URL="postgresql://postgres:password@127.0.0.1:5432/itportal?schema=public"'
+echo -e '   FRONTEND_URL="http://192.168.2.109:3000"'
+echo -e "2. Erstelle die Datei ${PROJECT_DIR}/frontend/.env.local und trage die API-URL ein:"
+echo -e '   NEXT_PUBLIC_API_URL="http://192.168.2.109:5000/api"'
+echo -e "3. Führe im Backend-Ordner 'npx prisma db push' aus, um die Datenbank zu initialisieren."
+echo -e "4. Starte die PM2 Prozesse neu: 'pm2 restart all'"
 echo -e "${GREEN}==============================================${NC}"
