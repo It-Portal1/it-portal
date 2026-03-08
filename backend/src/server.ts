@@ -42,9 +42,24 @@ app.use(helmet({
     },
 }));
 
-// CORS – nur Frontend-Origin erlaubt
+// CORS – Erlaubte Origins definieren
+const allowedOrigins = [
+    'http://localhost:3000',
+    'http://192.168.2.109:3000', // Dev Server über IP
+    'http://192.168.2.109',      // Nginx / Produktion
+    process.env.FRONTEND_URL     // Aus .env Datei
+].filter(Boolean) as string[];
+
 app.use(cors({
-    origin: process.env.FRONTEND_URL || 'http://localhost:3000',
+    origin: (origin, callback) => {
+        // !origin erlaubt Anfragen ohne Origin (z.B. Postman oder Server-zu-Server)
+        if (!origin || allowedOrigins.includes(origin)) {
+            callback(null, true);
+        } else {
+            console.log(`⚠️ CORS blockiert Anfrage von: ${origin}`);
+            callback(new Error('Not allowed by CORS'));
+        }
+    },
     credentials: true, // Cookies mitsenden
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization'],

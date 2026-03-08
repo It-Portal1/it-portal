@@ -40,6 +40,23 @@ fi
 
 cd $PROJECT_DIR
 
+# 4.1 Automatische Konfiguration (.env Dateien erstellen)
+echo -e "${GREEN}[4.1/8] Konfigurationsdateien erstellen...${NC}"
+
+# Backend .env
+cat > $PROJECT_DIR/backend/.env << EOF
+DATABASE_URL="postgresql://postgres:password@127.0.0.1:5432/itportal?schema=public"
+PORT=5000
+JWT_SECRET="change-this-secret-in-production"
+REFRESH_TOKEN_SECRET="change-this-refresh-secret-in-production"
+FRONTEND_URL="http://192.168.2.109:3000"
+EOF
+
+# Frontend .env.local
+cat > $PROJECT_DIR/frontend/.env.local << EOF
+NEXT_PUBLIC_API_URL="http://192.168.2.109:5000/api"
+EOF
+
 # 5. Backend einrichten
 echo -e "${GREEN}[5/8] Backend konfigurieren...${NC}"
 cd $PROJECT_DIR/backend
@@ -110,11 +127,6 @@ sudo systemctl restart nginx
 echo -e "${GREEN}==============================================${NC}"
 echo -e "${GREEN}Installation abgeschlossen!${NC}"
 echo -e "Wichtige nächste Schritte manuell:"
-echo -e "1. Erstelle die Datei ${PROJECT_DIR}/backend/.env und trage die URLs ein:"
-echo -e '   DATABASE_URL="postgresql://postgres:password@127.0.0.1:5432/itportal?schema=public"'
-echo -e '   FRONTEND_URL="http://192.168.2.109:3000"'
-echo -e "2. Erstelle die Datei ${PROJECT_DIR}/frontend/.env.local und trage die API-URL ein:"
-echo -e '   NEXT_PUBLIC_API_URL="http://192.168.2.109:5000/api"'
-echo -e "3. Führe im Backend-Ordner 'npx prisma db push' aus, um die Datenbank zu initialisieren."
-echo -e "4. Starte die PM2 Prozesse neu: 'pm2 restart all'"
+echo -e "1. Führe im Backend-Ordner 'npx prisma db push' aus, um die Datenbank zu initialisieren."
+echo -e "2. Starte die PM2 Prozesse neu: 'pm2 restart all'"
 echo -e "${GREEN}==============================================${NC}"
