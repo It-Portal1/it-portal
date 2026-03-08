@@ -66,26 +66,27 @@ async function main() {
     console.log(`✅ Rollen erstellt: ${adminRole.name}, ${itRole.name}, ${userRole.name}`);
 
     // ─── Admin-Benutzer anlegen ──────────────────────────────────────────────────
-    const existingAdmin = await prisma.user.findUnique({ where: { username: 'admin' } });
-
-    if (!existingAdmin) {
-        const passwordHash = await bcrypt.hash('mpipwmkbe3521!', 12);
-        const admin = await prisma.user.create({
-            data: {
-                username: 'admin',
-                email: 'admin@itportal.local',
-                passwordHash,
-                isAdmin: true,
-                isActive: true,
-                roleId: adminRole.id,
-                requirePasswordChange: false,
-            },
-        });
-        console.log(`✅ Admin-Benutzer erstellt: ${admin.username} (${admin.email})`);
-        console.log('   Passwort: mpipwmkbe3521!');
-    } else {
-        console.log('ℹ️ Admin-Benutzer existiert bereits.');
-    }
+    const passwordHash = await bcrypt.hash('mpipwmkbe3521!', 12);
+    const admin = await prisma.user.upsert({
+        where: { username: 'admin' },
+        update: {
+            passwordHash, // Passwort bei jedem Seed zurücksetzen
+            isAdmin: true,
+            isActive: true,
+            roleId: adminRole.id,
+        },
+        create: {
+            username: 'admin',
+            email: 'admin@itportal.local',
+            passwordHash,
+            isAdmin: true,
+            isActive: true,
+            roleId: adminRole.id,
+            requirePasswordChange: false,
+        },
+    });
+    console.log(`✅ Admin-Benutzer (re)initialisiert: ${admin.username}`);
+    console.log('   Passwort: mpipwmkbe3521!');
 
     // ─── Beispiel-Tool anlegen ───────────────────────────────────────────────────
     await prisma.tool.upsert({
