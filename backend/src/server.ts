@@ -78,9 +78,17 @@ if (!fs.existsSync(uploadDir)) {
 // ─── Statisches Hosting für hochgeladene HTML-Dateien ───────────────────────
 app.use('/hosted', hostedRouter);
 
+// Debug-Logging: Zeigt jede Anfrage in der Konsole an
+app.use((req, res, next) => {
+    console.log(`[REQUEST] ${req.method} ${req.url}`);
+    next();
+});
+
 // ─── API-Routen ──────────────────────────────────────────────────────────────
 app.use('/api/auth/login', loginRateLimiter); // Rate limiting NUR auf Login
+app.use('/api/login', loginRateLimiter);      // Fallback Rate limiting
 app.use('/api/auth', authRouter);
+app.use('/api', authRouter);                  // Fallback für /api/login statt /api/auth/login
 app.use('/api/users', usersRouter);
 app.use('/api/roles', rolesRouter);
 app.use('/api/tools', toolsRouter);
@@ -92,7 +100,8 @@ app.get('/api/health', (_req, res) => {
 });
 
 // ─── 404 Handler ─────────────────────────────────────────────────────────────
-app.use((_req, res) => {
+app.use((req, res) => {
+    console.warn(`⚠️ 404 - Route nicht gefunden: ${req.method} ${req.url}`);
     res.status(404).json({ error: 'Route nicht gefunden' });
 });
 
