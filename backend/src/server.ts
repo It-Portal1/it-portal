@@ -125,33 +125,30 @@ async function ensureAdminUser() {
             }
         });
 
-        // 2. Admin-User sicherstellen/resetten
-        const passwordHash = await bcrypt.hash('mpipwmkbe3521!', 12);
+        // 2. Admin-User prüfen (NICHT überschreiben, wenn er schon existiert!)
+        const existingAdmin = await prisma.user.findUnique({ where: { username: 'admin' } });
 
-        await prisma.user.upsert({
-            where: { username: 'admin' },
-            update: {
-                passwordHash,
-                isActive: true,
-                isAdmin: true,
-                roleId: adminRole.id,
-                requirePasswordChange: false
-            },
-            create: {
-                username: 'admin',
-                email: 'admin@itportal.local',
-                passwordHash,
-                isAdmin: true,
-                isActive: true,
-                roleId: adminRole.id,
-                requirePasswordChange: false
-            }
-        });
-        console.log('\n┌──────────────────────────────────────────────────────┐');
-        console.log('│ 🔐 Admin-Benutzer erfolgreich eingerichtet/resetten  │');
-        console.log('│    Benutzername: admin                               │');
-        console.log('│    Passwort:     mpipwmkbe3521!                      │');
-        console.log('└──────────────────────────────────────────────────────┘\n');
+        if (!existingAdmin) {
+            const passwordHash = await bcrypt.hash('mpipwmkbe3521!', 12);
+            await prisma.user.create({
+                data: {
+                    username: 'admin',
+                    email: 'admin@itportal.local',
+                    passwordHash,
+                    isAdmin: true,
+                    isActive: true,
+                    roleId: adminRole.id,
+                    requirePasswordChange: false
+                }
+            });
+            console.log('\n┌──────────────────────────────────────────────────────┐');
+            console.log('│ 🔐 Admin-Benutzer wurde neu erstellt                 │');
+            console.log('│    Benutzername: admin                               │');
+            console.log('│    Passwort:     mpipwmkbe3521!                      │');
+            console.log('└──────────────────────────────────────────────────────┘\n');
+        } else {
+            console.log('ℹ️ Admin-Benutzer existiert bereits (Passwort wurde beibehalten).');
+        }
     } catch (error) {
         console.error('⚠️ Konnte Admin-User nicht verifizieren:', error);
         console.error('\n👉 TIPP: Läuft die Datenbank? Führe "docker compose up -d" im Hauptverzeichnis aus.\n');
