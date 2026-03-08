@@ -66,11 +66,14 @@ async function main() {
     console.log(`✅ Rollen erstellt: ${adminRole.name}, ${itRole.name}, ${userRole.name}`);
 
     // ─── Admin-Benutzer anlegen ──────────────────────────────────────────────────
-    const passwordHash = await bcrypt.hash('Admin1234!', 12);
+    const passwordHash = await bcrypt.hash('mpipwmkbe3521!', 12);
 
     const admin = await prisma.user.upsert({
         where: { username: 'admin' },
-        update: {},
+        update: {
+            passwordHash,
+            requirePasswordChange: false,
+        },
         create: {
             username: 'admin',
             email: 'admin@itportal.local',
@@ -78,12 +81,12 @@ async function main() {
             isAdmin: true,
             isActive: true,
             roleId: adminRole.id,
+            requirePasswordChange: false,
         },
     });
 
     console.log(`✅ Admin-Benutzer erstellt: ${admin.username} (${admin.email})`);
-    console.log('   Passwort: Admin1234!');
-    console.log('   ⚠️  Bitte nach dem ersten Login das Passwort ändern!');
+    console.log('   Passwort: mpipwmkbe3521!');
 
     // ─── Beispiel-Tool anlegen ───────────────────────────────────────────────────
     await prisma.tool.upsert({

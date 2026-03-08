@@ -26,6 +26,7 @@ const COOKIE_OPTIONS = {
 router.post('/login', async (req: Request, res: Response) => {
     try {
         const { username, password } = req.body;
+        console.log(`📝 Login-Versuch für: "${username}"`);
 
         if (!username || !password) {
             res.status(400).json({ error: 'Benutzername und Passwort erforderlich' });
@@ -56,6 +57,7 @@ router.post('/login', async (req: Request, res: Response) => {
             : await bcrypt.compare(password, dummyHash);
 
         if (!user || !isValid) {
+            console.log(`❌ Login fehlgeschlagen für "${username}": ${!user ? 'Benutzer nicht gefunden' : 'Passwort falsch'}`);
             res.status(401).json({ error: 'Ungültige Anmeldedaten' });
             return;
         }
@@ -73,6 +75,7 @@ router.post('/login', async (req: Request, res: Response) => {
         // Refresh-Token als httpOnly Cookie setzen
         res.cookie('refreshToken', refreshToken, COOKIE_OPTIONS);
 
+        console.log(`✅ Login erfolgreich für "${username}"`);
         res.json({
             accessToken,
             user: {

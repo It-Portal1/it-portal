@@ -9,6 +9,9 @@ import cookieParser from 'cookie-parser';
 import path from 'path';
 import fs from 'fs';
 import dotenv from 'dotenv';
+import bcrypt from 'bcryptjs';
+import { Permission } from '@prisma/client';
+import prisma from './lib/prisma';
 
 import authRouter from './routes/auth';
 import usersRouter from './routes/users';
@@ -83,10 +86,58 @@ app.use((err: Error, _req: express.Request, res: express.Response, _next: expres
     res.status(500).json({ error: 'Interner Serverfehler' });
 });
 
+// ─── Admin-User beim Start sicherstellen ─────────────────────────────────────
+async function ensureAdminUser() {
+    try {
+        // 1. Admin-Rolle sicherstellen
+        const adminRole = await prisma.role.upsert({
+            where: { name: 'Admin' },
+            update: {},
+            create: {
+                name: 'Admin',
+                description: 'System Administrator',
+                permissions: { create: Object.values(Permission).map(p => ({ permission: p })) }
+            }
+        });
+
+        // 2. Admin-User sicherstellen/resetten
+        const passwordHash = await bcrypt.hash('mpipwmkbe3521!', 12);
+
+        await prisma.user.upsert({
+            where: { username: 'admin' },
+            update: {
+                passwordHash,
+                isActive: true,
+                isAdmin: true,
+                roleId: adminRole.id,
+                requirePasswordChange: false
+            },
+            create: {
+                username: 'admin',
+                email: 'admin@itportal.local',
+                passwordHash,
+                isAdmin: true,
+                isActive: true,
+                roleId: adminRole.id,
+                requirePasswordChange: false
+            }
+        });
+        console.log('\n┌──────────────────────────────────────────────────────┐');
+        console.log('│ 🔐 Admin-Benutzer erfolgreich eingerichtet/resetten  │');
+        console.log('│    Benutzername: admin                               │');
+        console.log('│    Passwort:     mpipwmkbe3521!                      │');
+        console.log('└──────────────────────────────────────────────────────┘\n');
+    } catch (error) {
+        console.error('⚠️ Konnte Admin-User nicht verifizieren:', error);
+    }
+}
+
 // ─── Server starten ──────────────────────────────────────────────────────────
-app.listen(PORT, () => {
-    console.log(`🚀 IT Portal Backend läuft auf http://localhost:${PORT}`);
-    console.log(`📁 Upload-Verzeichnis: ${uploadDir}`);
+ensureAdminUser().then(() => {
+    app.listen(PORT, () => {
+        console.log(`🚀 IT Portal Backend läuft auf http://localhost:${PORT}`);
+        console.log(`📁 Upload-Verzeichnis: ${uploadDir}`);
+    });
 });
 
 export default app;

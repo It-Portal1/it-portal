@@ -39,9 +39,16 @@ router.put('/:id', authenticate, async (req: Request, res: Response) => {
         const user = await prisma.user.findUnique({ where: { id } });
         if (!user) return res.status(404).json({ error: 'Benutzer nicht gefunden' });
 
-        // SCHUTZ: Der Haupt-Admin darf nicht bearbeitet werden
+        // SCHUTZ: Der Haupt-Admin (username 'admin') hat spezielle Regeln
         if (user.username.toLowerCase() === 'admin') {
-            return res.status(403).json({ error: 'Der Administrator "admin" darf nicht bearbeitet werden.' });
+            // 1. Username darf nicht geändert werden
+            if (username && username.toLowerCase() !== 'admin') {
+                return res.status(403).json({ error: 'Der Benutzername des Haupt-Administrators kann nicht geändert werden.' });
+            }
+            // 2. Darf nicht deaktiviert werden
+            if (isActive === false) {
+                return res.status(403).json({ error: 'Der Haupt-Administrator kann nicht deaktiviert werden.' });
+            }
         }
 
         const data: any = {
@@ -80,8 +87,8 @@ router.delete('/:id', authenticate, async (req: Request, res: Response) => {
         if (!user) return res.status(404).json({ error: 'Benutzer nicht gefunden' });
 
         // SCHUTZ: Der Haupt-Admin darf nicht gelöscht werden
-        if (user.username.toLowerCase() === 'admin' || user.username === 'admin') {
-            return res.status(403).json({ error: 'Der Administrator "admin" darf nicht gelöscht werden.' });
+        if (user.username.toLowerCase() === 'admin') {
+            return res.status(403).json({ error: 'Der Haupt-Administrator "admin" darf nicht gelöscht werden. Dieser Benutzer ist systemrelevant.' });
         }
 
         await prisma.user.delete({ where: { id } });

@@ -1,0 +1,13 @@
+# Abhängigkeiten
+node_modules
+
+# Build-Ordner
+dist
+build
+
+# Umweltvariablen & Geheimnisse (NIEMALS hochladen!)
+.env
+
+# Logs & Systemdateien
+*.log
+.DS_Store

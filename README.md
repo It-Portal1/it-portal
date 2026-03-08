@@ -1,4 +1,4 @@
-# IT Portal
+npm# IT Portal
 
 Ein modernes, sicheres Portal für Schul-IT-Teams zur Verwaltung von Tools und Benutzern.
 
@@ -36,7 +36,7 @@ Das Frontend läuft nun auf [http://localhost:3000](http://localhost:3000).
 
 ## 🔐 Login-Daten (Standard)
 - **Benutzername:** `admin`
-- **Passwort:** `Admin1234!`
+- **Passwort:** `mpipwmkbe3521!`
 
 ## 🛠️ Funktionen
 - **Modernes UI** mit Dark/Light Mode
