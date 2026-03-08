@@ -86,6 +86,11 @@ app.use((req, res, next) => {
     next();
 });
 
+// ─── Health Check (frühzeitig, damit er immer erreichbar ist) ────────────────
+app.get('/api/health', (_req, res) => {
+    res.json({ status: 'ok', timestamp: new Date().toISOString() });
+});
+
 // ─── API-Routen ──────────────────────────────────────────────────────────────
 app.use('/api/auth/login', loginRateLimiter); // Rate limiting NUR auf Login
 app.use('/api/login', loginRateLimiter);      // Fallback Rate limiting
@@ -104,15 +109,15 @@ app.use('/roles', rolesRouter);
 app.use('/tools', toolsRouter);
 app.use('/settings', settingsRouter);
 
-// ─── Health Check ────────────────────────────────────────────────────────────
-app.get('/api/health', (_req, res) => {
-    res.json({ status: 'ok', timestamp: new Date().toISOString() });
-});
+// ─── Absolute Fallback (falls Nginx Pfade komplett umschreibt) ────────────────
+app.use('/login', loginRateLimiter);
+app.use('/', authRouter);
 
 // ─── 404 Handler ─────────────────────────────────────────────────────────────
 app.use((req, res) => {
     console.warn(`⚠️ 404 - Route nicht gefunden: ${req.method} ${req.url}`);
-    res.status(404).json({ error: 'Route nicht gefunden' });
+    console.warn(`   Host: ${req.headers.host}`);
+    res.status(404).json({ error: 'Route nicht gefunden', path: req.url });
 });
 
 // ─── Error Handler ───────────────────────────────────────────────────────────
