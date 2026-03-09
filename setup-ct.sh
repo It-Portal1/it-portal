@@ -16,7 +16,19 @@ DB_PASS="password"
 REPO_URL="https://github.com/It-Portal1/it-portal.git"
 PROJECT_DIR="/var/www/it-portal"
 
+# Prüfen ob als root ausgeführt
+if [ "$EUID" -ne 0 ]; then 
+  echo "❌ Bitte führe das Script als root oder mit sudo aus!"
+  exit 1
+fi
+
 echo "🚀 Starte IT Portal Setup auf Ubuntu CT..."
+
+# Bestehende PM2 Prozesse stoppen um Konflikte zu vermeiden
+echo "🧹 Bereinige alte Prozesse..."
+pm2 stop all || true
+pm2 delete all || true
+pm2 kill || true
 
 # 1. System Update
 echo "📦 [1/7] System-Update und Abhängigkeiten..."
