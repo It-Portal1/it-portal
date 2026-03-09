@@ -10,4 +10,5 @@ build
 
 # Logs & Systemdateien
 *.log
+*.db
 .DS_Store

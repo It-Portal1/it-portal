@@ -3,18 +3,36 @@
  * Konfiguriert Express App mit allen Middlewares und Routen
  */
 import dotenv from 'dotenv';
-// WICHTIG: .env muss geladen werden, BEVOR andere Module (wie Prisma) importiert werden!
-dotenv.config();
+import path from 'path';
 
+// ─── 1. Umgebungsvariablen laden (WICHTIG: Ganz am Anfang!) ──────────────────
+const envPath = path.resolve(__dirname, '../.env');
+dotenv.config({ path: envPath });
+
+// Fallback, falls im falschen Verzeichnis gestartet
+if (!process.env.DATABASE_URL) {
+    dotenv.config();
+}
+
+// Sicherheitscheck: Ohne Datenbank-URL kann der Server nicht laufen.
+if (!process.env.DATABASE_URL) {
+    console.error('❌ KRITISCHER FEHLER: DATABASE_URL nicht gefunden!');
+    console.error('   Bitte stelle sicher, dass die Datei "backend/.env" existiert und die URL enthält.');
+    console.error(`   Gesucht in: ${envPath}`);
+    process.exit(1); // Beenden, da der Server sonst nutzlos ist.
+} else {
+    console.log('✅ Umgebungsvariablen geladen.');
+}
+
+// ─── 2. Alle weiteren Module importieren ──────────────────────────────────────
 import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import cookieParser from 'cookie-parser';
-import path from 'path';
 import fs from 'fs';
 import bcrypt from 'bcryptjs';
 import { Permission } from '@prisma/client';
-import prisma from './lib/prisma';
+import prisma from './lib/prisma'; // Importiert den korrekten Singleton-Client
 
 import authRouter from './routes/auth';
 import usersRouter from './routes/users';
@@ -24,13 +42,14 @@ import hostedRouter from './routes/hosted';
 import settingsRouter from './routes/settings';
 import { loginRateLimiter } from './middleware/rateLimiter';
 
+// ─── 3. Express App initialisieren ──────────────────────────────────────────
 const app = express();
 const PORT = process.env.PORT || 5000;
 
 // ─── Sicherheits-Middlewares ──────────────────────────────────────────────────
 app.use(helmet({
-    crossOriginEmbedderPolicy: false, // Damit iframes funktionieren
-    xFrameOptions: false, // Wir steuern X-Frame-Options manuell in den Routen (für /hosted)
+    crossOriginEmbedderPolicy: false,
+    xFrameOptions: false,
     contentSecurityPolicy: {
         directives: {
             defaultSrc: ["'self'"],
@@ -45,16 +64,18 @@ app.use(helmet({
 // CORS – Erlaubte Origins definieren
 const allowedOrigins = [
     'http://localhost:3000',
-    'http://192.168.2.110:3000', // Dev Server über IP
-    'http://192.168.2.110',      // Nginx / Produktion
+    'http://localhost:5173',     // Vite Standard
+    'http://127.0.0.1:3000',
+    'http://127.0.0.1:5173',
+    'http://192.168.2.110:3000', // Netzwerk IP
+    'http://192.168.2.110',
     'http://it-portal.jona-s.com',
     'https://it-portal.jona-s.com',
-    process.env.FRONTEND_URL     // Aus .env Datei
-].filter(Boolean) as string[];
+    process.env.FRONTEND_URL
+].filter((origin): origin is string => !!origin);
 
 app.use(cors({
     origin: (origin, callback) => {
-        // !origin erlaubt Anfragen ohne Origin (z.B. Postman oder Server-zu-Server)
         if (!origin || allowedOrigins.includes(origin)) {
             callback(null, true);
         } else {
@@ -62,11 +83,12 @@ app.use(cors({
             callback(new Error('Not allowed by CORS'));
         }
     },
-    credentials: true, // Cookies mitsenden
+    credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization'],
 }));
 
+// ─── Standard-Middlewares ────────────────────────────────────────────────────
 app.use(express.json({ limit: '1mb' }));
 app.use(express.urlencoded({ extended: true, limit: '1mb' }));
 app.use(cookieParser());
@@ -77,59 +99,42 @@ if (!fs.existsSync(uploadDir)) {
     fs.mkdirSync(uploadDir, { recursive: true });
 }
 
-// ─── Statisches Hosting für hochgeladene HTML-Dateien ───────────────────────
+// ─── Routen-Setup ────────────────────────────────────────────────────────────
 app.use('/hosted', hostedRouter);
 
-// Debug-Logging: Zeigt jede Anfrage in der Konsole an
 app.use((req, res, next) => {
     console.log(`[REQUEST] ${req.method} ${req.url}`);
     next();
 });
 
-// ─── Health Check (frühzeitig, damit er immer erreichbar ist) ────────────────
 app.get('/api/health', (_req, res) => {
     res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
-// ─── API-Routen ──────────────────────────────────────────────────────────────
-app.use('/api/auth/login', loginRateLimiter); // Rate limiting NUR auf Login
-app.use('/api/login', loginRateLimiter);      // Fallback Rate limiting
+// Rate Limiter für den Login-Endpunkt
+app.use('/api/auth/login', loginRateLimiter);
+
+// API-Routen
 app.use('/api/auth', authRouter);
-app.use('/api', authRouter);                  // Fallback für /api/login statt /api/auth/login
 app.use('/api/users', usersRouter);
 app.use('/api/roles', rolesRouter);
 app.use('/api/tools', toolsRouter);
 app.use('/api/settings', settingsRouter);
 
-// ─── Fallback für Nginx (falls /api Prefix entfernt wird) ─────────────────────
-app.use('/auth/login', loginRateLimiter);
-app.use('/auth', authRouter);
-app.use('/users', usersRouter);
-app.use('/roles', rolesRouter);
-app.use('/tools', toolsRouter);
-app.use('/settings', settingsRouter);
-
-// ─── Absolute Fallback (falls Nginx Pfade komplett umschreibt) ────────────────
-app.use('/login', loginRateLimiter);
-app.use('/', authRouter);
-
-// ─── 404 Handler ─────────────────────────────────────────────────────────────
+// ─── Fehlerbehandlung ────────────────────────────────────────────────────────
 app.use((req, res) => {
     console.warn(`⚠️ 404 - Route nicht gefunden: ${req.method} ${req.url}`);
-    console.warn(`   Host: ${req.headers.host}`);
     res.status(404).json({ error: 'Route nicht gefunden', path: req.url });
 });
 
-// ─── Error Handler ───────────────────────────────────────────────────────────
 app.use((err: Error, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
     console.error('[Server Error]', err.message);
     res.status(500).json({ error: 'Interner Serverfehler' });
 });
 
-// ─── Admin-User beim Start sicherstellen ─────────────────────────────────────
+// ─── Initialisierung beim Start ─────────────────────────────────────────────
 async function ensureAdminUser() {
     try {
-        // 1. Admin-Rolle sicherstellen
         const adminRole = await prisma.role.upsert({
             where: { name: 'Admin' },
             update: {},
@@ -140,13 +145,9 @@ async function ensureAdminUser() {
             }
         });
 
-        // 2. Admin-User prüfen und Passwort IMMER aktualisieren
-        const passwordHash = await bcrypt.hash('mpipwmkbe3521!', 12);
-
         await prisma.user.upsert({
             where: { username: 'admin' },
             update: {
-                passwordHash, // Passwort bei jedem Neustart zurücksetzen
                 isAdmin: true,
                 isActive: true,
                 roleId: adminRole.id,
@@ -154,19 +155,17 @@ async function ensureAdminUser() {
             create: {
                 username: 'admin',
                 email: 'admin@itportal.local',
-                passwordHash,
+                passwordHash: await bcrypt.hash('mpipwmkbe3521!', 12),
                 isAdmin: true,
                 isActive: true,
                 roleId: adminRole.id,
                 requirePasswordChange: false
             }
         });
-        console.log('✅ Admin-Benutzer sichergestellt (Passwort: mpipwmkbe3521!)');
+        console.log('✅ Admin-Benutzer sichergestellt.');
 
     } catch (error) {
-        console.error('⚠️ Konnte Admin-User nicht verifizieren:', error);
-        console.error('\n👉 TIPP: Läuft die Datenbank? Führe "docker compose up -d" im Hauptverzeichnis aus.\n');
-        console.error('👉 TIPP: Sind die Tabellen erstellt? Führe "npx prisma db push" im backend-Ordner aus.\n');
+        console.error('⚠️ Konnte Admin-User nicht verifizieren (Datenbank-Fehler?):', error);
     }
 }
 

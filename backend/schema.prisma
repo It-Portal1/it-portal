@@ -10,27 +10,25 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// Verfügbare Berechtigungen im System
+// Note: Enums in SQLite are handled as Strings by Prisma
 enum Permission {
-  VIEW_TOOLS    // Tools anzeigen
-  USE_TOOLS     // Tools nutzen/öffnen
-  CREATE_TOOLS  // Tools erstellen
-  EDIT_TOOLS    // Tools bearbeiten
-  DELETE_TOOLS  // Tools löschen
-  MANAGE_USERS  // Benutzer verwalten
+  VIEW_TOOLS
+  USE_TOOLS
+  CREATE_TOOLS
+  EDIT_TOOLS
+  DELETE_TOOLS
+  MANAGE_USERS
 }
 
-// Tool-Typ: externer Link oder gehostete HTML-Datei
 enum ToolType {
   EXTERNAL_LINK
   HTML_FILE
 }
 
-// Sichtbarkeit eines Tools
 enum ToolVisibility {
-  PUBLIC      // Für alle eingeloggten Benutzer sichtbar
-  ROLE_BASED  // Nur für bestimmte Rollen
-  USER_BASED  // Nur für bestimmte Benutzer
+  PUBLIC
+  ROLE_BASED
+  USER_BASED
 }
 
 // Benutzermodell
