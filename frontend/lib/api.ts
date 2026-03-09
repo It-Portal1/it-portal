@@ -6,9 +6,17 @@ import axios from 'axios';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
 
+// Falls die URL mit / beginnt (relatv), nehmen wir sie direkt ohne /api Anhang, 
+// da wir davon ausgehen, dass der User /api meint (siehe .env.local)
+const getBaseURL = () => {
+    if (API_URL.startsWith('/')) return API_URL;
+    if (API_URL.endsWith('/api')) return API_URL;
+    return `${API_URL}/api`;
+};
+
 const api = axios.create({
-    baseURL: `${API_URL}/api`,
-    withCredentials: true, // Cookies mitsenden (für httpOnly Refresh-Token)
+    baseURL: getBaseURL(),
+    withCredentials: true,
     headers: { 'Content-Type': 'application/json' },
 });
 
@@ -48,7 +56,7 @@ api.interceptors.response.use(
             isRefreshing = true;
 
             try {
-                const { data } = await axios.post(`${API_URL}/api/auth/refresh`, {}, {
+                const { data } = await axios.post(`${getBaseURL()}/auth/refresh`, {}, {
                     withCredentials: true,
                 });
                 const newToken = data.accessToken;
