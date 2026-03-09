@@ -54,14 +54,16 @@ echo "⚙️ [5/7] Umgebungsvariablen konfigurieren..."
 cat > backend/.env << EOF
 DATABASE_URL="postgresql://$DB_USER:$DB_PASS@127.0.0.1:5432/$DB_NAME?schema=public"
 PORT=5000
-JWT_SECRET="gen-$(date +%s | sha256sum | base64 | head -c 32)"
-REFRESH_TOKEN_SECRET="gen-$(date +%s | sha256sum | base64 | head -c 32)"
-FRONTEND_URL="http://$DOMAIN"
+JWT_ACCESS_SECRET="gen-$(date +%s | sha256sum | base64 | head -c 32)"
+JWT_REFRESH_SECRET="gen-$(date +%s | sha256sum | base64 | head -c 32)"
+FRONTEND_URL="https://$DOMAIN"
+NODE_ENV="production"
 EOF
 
 # Frontend .env.local
 cat > frontend/.env.local << EOF
-NEXT_PUBLIC_API_URL="http://$DOMAIN/api"
+# In Produktion nutzen wir den relativen Pfad /api, da alles über denselben Nginx läuft
+NEXT_PUBLIC_API_URL="/api"
 EOF
 
 # 6. Build & Start

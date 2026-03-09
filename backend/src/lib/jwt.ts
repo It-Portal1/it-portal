@@ -19,8 +19,8 @@ export interface JwtPayload {
  * Erstellt ein kurzlebiges Access-Token (15 Minuten)
  */
 export function signAccessToken(payload: JwtPayload): string {
-    const secret = (process.env.JWT_ACCESS_SECRET as string) || 'default_secret';
-    const expiresIn = (process.env.JWT_ACCESS_EXPIRES as string) || '15m';
+    const secret = process.env.JWT_ACCESS_SECRET || process.env.JWT_SECRET || 'fallback-secret-for-dev-only';
+    const expiresIn = process.env.JWT_ACCESS_EXPIRES || '15m';
 
     return jwt.sign(payload as any, secret, {
         expiresIn: expiresIn as any,
@@ -46,7 +46,8 @@ export async function signRefreshToken(userId: string): Promise<string> {
  * Verifiziert ein Access-Token und gibt den Payload zurück
  */
 export function verifyAccessToken(token: string): JwtPayload {
-    return jwt.verify(token, process.env.JWT_ACCESS_SECRET as string) as JwtPayload;
+    const secret = process.env.JWT_ACCESS_SECRET || process.env.JWT_SECRET || 'fallback-secret-for-dev-only';
+    return jwt.verify(token, secret) as JwtPayload;
 }
 
 /**

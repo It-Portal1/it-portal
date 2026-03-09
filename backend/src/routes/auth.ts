@@ -88,8 +88,12 @@ router.post('/login', async (req: Request, res: Response) => {
                 permissions,
             },
         });
-    } catch (err) {
-        console.error('[Login Error]', err);
+    } catch (err: any) {
+        console.error('[Login Error Detail]', {
+            message: err.message,
+            stack: err.stack,
+            code: err.code
+        });
         res.status(500).json({ error: 'Anmeldung fehlgeschlagen' });
     }
 });
