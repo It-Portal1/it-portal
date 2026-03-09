@@ -88,6 +88,10 @@ pm2 save
 
 # 7. Nginx Reverse Proxy
 echo "🌐 [7/7] Nginx konfigurieren..."
+# Sicherstellen, dass Services beim Booten starten
+systemctl enable postgresql
+systemctl enable nginx
+
 NGINX_CONF="/etc/nginx/sites-available/it-portal"
 cat > $NGINX_CONF << EOF
 server {
