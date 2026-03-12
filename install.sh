@@ -1,143 +1,132 @@
 #!/bin/bash
-# IT Portal - Ubuntu Installation Script
-# Dieses Script installiert Node.js, PM2, Nginx und richtet das Projekt ein.
-# Führe dieses Script mit SUDO-Rechten aus!
+# ==============================================================================
+# IT Portal - Ultimate One-Click Ubuntu Installer
+# ==============================================================================
+# Dieses Script installiert Node.js, PM2, Nginx, PostgreSQL und Cloudflared.
+# Es richtet das gesamte Portal automatisch ein.
+# Führe es als root aus: bash install.sh
+# ==============================================================================
 
 set -e
 
-# Farben für Output
-GREEN='\033[0;32m'
-RED='\033[0;31m'
-NC='\033[0m' # No Color
-
-echo -e "${GREEN}Starte IT Portal Installation...${NC}"
-
-# 1. System updaten
-echo -e "${GREEN}[1/8] System aktualisieren...${NC}"
-sudo apt update && sudo apt upgrade -y
-
-# 2. Node.js, Nginx und Docker installieren
-echo -e "${GREEN}[2/8] Abhängigkeiten installieren (Node.js, Nginx, PostgreSQL-Client, Docker)...${NC}"
-curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
-sudo apt-get install -y nodejs nginx git postgresql-client docker.io docker-compose-v2
-
-# Docker starten und aktivieren
-sudo systemctl enable --now docker
-# Aktuellen User zur Docker-Gruppe hinzufügen
-sudo usermod -aG docker $USER
-
-# 3. PM2 Prozessmanager installieren
-echo -e "${GREEN}[3/8] PM2 installieren...${NC}"
-sudo npm install -g pm2
-
-# 4. Repository Setup
-echo -e "${GREEN}[4/8] Projektverzeichnis einrichten...${NC}"
-# Ersetze die URL mit deinem echten GitHub Repository Link!
+# --- KONFIGURATION (Hier anpassen) ---
+DOMAIN="it-portal.deine-domain.com"
+DB_NAME="itportal"
+DB_USER="postgres"
+DB_PASS="password"
 REPO_URL="https://github.com/It-Portal1/it-portal.git"
 PROJECT_DIR="/var/www/it-portal"
 
-if [ -d "$PROJECT_DIR" ]; then
-    echo "Verzeichnis existiert bereits. Überspringe Klonen."
+GREEN='\033[0;32m'
+BLUE='\033[0;34m'
+NC='\033[0m'
+
+echo -e "${BLUE}🚀 Starte IT Portal Ultimate Installation...${NC}"
+
+# 1. System Update & Dependencies
+echo -e "${GREEN}[1/7] System-Update und Abhängigkeiten...${NC}"
+apt update && apt upgrade -y
+apt install -y curl git postgresql postgresql-contrib nginx
+
+# 2. Node.js (v20) & PM2
+echo -e "${GREEN}[2/7] Node.js und PM2 installieren...${NC}"
+curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
+apt install -y nodejs
+npm install -g pm2
+
+# 3. PostgreSQL Datenbank Setup
+echo -e "${GREEN}[3/7] Datenbank initialisieren...${NC}"
+sudo -u postgres psql -c "CREATE DATABASE $DB_NAME;" || true
+sudo -u postgres psql -c "ALTER USER $DB_USER WITH PASSWORD '$DB_PASS';"
+sudo -u postgres psql -c "GRANT ALL PRIVILEGES ON DATABASE $DB_NAME TO $DB_USER;"
+
+# 4. Repository klonen & Config
+echo -e "${GREEN}[4/7] Projekt von GitHub abrufen und konfigurieren...${NC}"
+mkdir -p "$PROJECT_DIR"
+if [ -d "$PROJECT_DIR/.git" ]; then
+    cd "$PROJECT_DIR"
+    git pull
 else
-    sudo git clone $REPO_URL $PROJECT_DIR
-    sudo chown -R $USER:$USER $PROJECT_DIR
+    git clone "$REPO_URL" "$PROJECT_DIR"
+    cd "$PROJECT_DIR"
 fi
 
-cd $PROJECT_DIR
-
-# 4.1 Automatische Konfiguration (.env Dateien erstellen)
-echo -e "${GREEN}[4.1/8] Konfigurationsdateien erstellen...${NC}"
-
 # Backend .env
-cat > $PROJECT_DIR/backend/.env << EOF
-DATABASE_URL="postgresql://postgres:password@127.0.0.1:5432/itportal?schema=public"
+cat > backend/.env << EOF
+DATABASE_URL="postgresql://$DB_USER:$DB_PASS@127.0.0.1:5432/$DB_NAME?schema=public"
 PORT=5000
-JWT_SECRET="change-this-secret-in-production"
-REFRESH_TOKEN_SECRET="change-this-refresh-secret-in-production"
-FRONTEND_URL="http://192.168.2.110:3000"
+JWT_ACCESS_SECRET="gen-$(date +%s | sha256sum | head -c 32)"
+JWT_REFRESH_SECRET="gen-$(date +%s | sha256sum | head -c 32)"
+FRONTEND_URL="https://$DOMAIN"
+NODE_ENV="production"
 EOF
 
 # Frontend .env.local
-cat > $PROJECT_DIR/frontend/.env.local << EOF
-NEXT_PUBLIC_API_URL="http://192.168.2.110:5000/api"
+cat > frontend/.env.local << EOF
+NEXT_PUBLIC_API_URL="/api"
 EOF
 
-# 5. Backend einrichten
-echo -e "${GREEN}[5/8] Backend konfigurieren...${NC}"
-cd $PROJECT_DIR/backend
-npm install
+# 5. Build & Start (PM2)
+echo -e "${GREEN}[5/7] Backend und Frontend bauen...${NC}"
+cd backend && npm install && npx prisma db push --accept-data-loss && npm run seed && npm run build
+pm2 delete it-backend || true
+pm2 start dist/server.js --name "it-backend"
 
-# Datenbank initialisieren (Tabellen erstellen & Seed)
-echo -e "${GREEN}Initialisiere Datenbank...${NC}"
-npx prisma db push
-npm run seed
-
-npm run build
-# PM2 für Backend starten
-pm2 start dist/server.js --name "it-portal-backend"
-
-# 6. Frontend einrichten
-echo -e "${GREEN}[6/8] Frontend konfigurieren...${NC}"
-cd $PROJECT_DIR/frontend
-npm install
-npm run build
-# PM2 für Frontend starten (Next.js)
-pm2 start npm --name "it-portal-frontend" -- run start
-
-# 7. PM2 Autostart konfigurieren
-echo -e "${GREEN}[7/8] PM2 Autostart nach Server-Reboot einrichten...${NC}"
+cd ../frontend && npm install && npm run build
+pm2 delete it-frontend || true
+pm2 start npm --name "it-frontend" -- run start
 pm2 save
-# Hinweis: PM2 Startup muss oft manuell bestätigt werden.
-pm2 startup
+pm2 startup | tail -n 1 | bash || true
 
-# 8. Nginx Reverse Proxy Einrichtung
-echo -e "${GREEN}[8/8] Nginx konfigurieren...${NC}"
+# 6. Nginx Reverse Proxy
+echo -e "${GREEN}[6/7] Nginx konfigurieren...${NC}"
 NGINX_CONF="/etc/nginx/sites-available/it-portal"
-sudo bash -c "cat > $NGINX_CONF" << 'EOF'
+cat > $NGINX_CONF << EOF
 server {
     listen 80;
-    server_name 192.168.2.110;
+    server_name $DOMAIN;
 
-    # Frontend
     location / {
         proxy_pass http://localhost:3000;
         proxy_http_version 1.1;
-        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Upgrade \$http_upgrade;
         proxy_set_header Connection 'upgrade';
-        proxy_set_header Host $host;
-        proxy_cache_bypass $http_upgrade;
+        proxy_set_header Host \$host;
+        proxy_cache_bypass \$http_upgrade;
     }
 
-    # Backend API + Hosted Tools (Uploads)
     location /api/ {
         proxy_pass http://localhost:5000/api/;
         proxy_http_version 1.1;
-        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Upgrade \$http_upgrade;
         proxy_set_header Connection 'upgrade';
-        proxy_set_header Host $host;
-        proxy_cache_bypass $http_upgrade;
-        
-        # Erlaube Uploads bis max. 50MB (oder mehr, z.b. 100M)
+        proxy_set_header Host \$host;
         client_max_body_size 50M;
     }
 
-    location /hosted/ {
-        proxy_pass http://localhost:5000/hosted/;
+    location /uploads/ {
+        proxy_pass http://localhost:5000/uploads/;
         proxy_http_version 1.1;
-        proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection 'upgrade';
-        proxy_set_header Host $host;
-        proxy_cache_bypass $http_upgrade;
+        proxy_set_header Host \$host;
     }
 }
 EOF
+ln -sf $NGINX_CONF /etc/nginx/sites-enabled/
+rm -f /etc/nginx/sites-enabled/default
+systemctl restart nginx
 
-sudo ln -sf /etc/nginx/sites-available/it-portal /etc/nginx/sites-enabled/
-sudo rm -f /etc/nginx/sites-enabled/default
-sudo systemctl restart nginx
+# 7. Cloudflare Tunnel installieren
+echo -e "${GREEN}[7/7] Cloudflared installieren...${NC}"
+if ! command -v cloudflared &> /dev/null; then
+    curl -L --output cloudflared.deb https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64.deb
+    dpkg -i cloudflared.deb
+fi
 
-echo -e "${GREEN}==============================================${NC}"
-echo -e "${GREEN}Installation abgeschlossen!${NC}"
-echo -e "Wichtige nächste Schritte manuell:"
-echo -e "1. Starte die PM2 Prozesse neu, falls nötig: 'pm2 restart all'"
-echo -e "${GREEN}==============================================${NC}"
+echo -e "\n${BLUE}==========================================================================${NC}"
+echo -e "🎉 INSTALLATION ABGESCHLOSSEN!"
+echo -e "📍 URL: http://$DOMAIN"
+echo -e "👤 Login: admin / mpipwmkbe3521!"
+echo -e "\nNächster Schritt für den Cloudflare Tunnel:"
+echo -e "1. cloudflared tunnel login"
+echo -e "2. cloudflared tunnel create mein-tunnel"
+echo -e "${BLUE}==========================================================================${NC}"
