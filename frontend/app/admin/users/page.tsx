@@ -1,14 +1,12 @@
-/**
- * Admin: Benutzerverwaltung
- * Tabellen-Ansicht mit Erstellen/Bearbeiten/Löschen Modals
- */
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
 import api from '@/lib/api';
 import { User, Role, Permission } from '@/types';
 import {
-    Plus, Pencil, Trash2, CheckCircle, XCircle, Shield, Loader2, X
+    Plus, Pencil, Trash2, CheckCircle, XCircle, Shield, Loader2, X,
+    Mail, User as UserIcon, Settings, UserPlus, Search, MoreVertical,
+    CheckCircle2, AlertCircle, Save
 } from 'lucide-react';
 
 const ALL_PERMISSIONS: { value: Permission; label: string }[] = [
@@ -48,6 +46,7 @@ export default function AdminUsersPage() {
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState('');
     const [toast, setToast] = useState('');
+    const [searchTerm, setSearchTerm] = useState('');
 
     const showToast = (msg: string) => {
         setToast(msg);
@@ -64,6 +63,8 @@ export default function AdminUsersPage() {
             setUsers(uRes.data);
             setRoles(rRes.data);
             setTools(tRes.data);
+        } catch (err) {
+            console.error('Fetch error:', err);
         } finally {
             setLoading(false);
         }
@@ -88,7 +89,7 @@ export default function AdminUsersPage() {
             isActive: u.isActive,
             requirePasswordChange: u.requirePasswordChange,
             roleId: u.roleId ?? '',
-            permissions: u.userPermissions.map(p => p.permission),
+            permissions: u.userPermissions?.map(p => p.permission) || [],
             toolIds: (u as any).toolAccess || [],
         });
         setError('');
@@ -100,39 +101,53 @@ export default function AdminUsersPage() {
         setError('');
         try {
             if (!editUser && !form.password) {
-                setSaving(false);
                 setError('Passwort für neuen Benutzer erforderlich');
+                setSaving(false);
                 return;
             }
             if (form.password && form.password.length < 8) {
-                setSaving(false);
                 setError('Passwort muss mindestens 8 Zeichen haben');
+                setSaving(false);
                 return;
             }
 
             const payload = { ...form, roleId: form.roleId || null };
             if (editUser) {
                 await api.put(`/users/${editUser.id}`, payload);
-                showToast('Benutzer aktualisiert');
+                showToast('Benutzer erfolgreich aktualisiert');
             } else {
                 await api.post('/users', payload);
-                showToast('Benutzer erstellt');
+                showToast('Benutzer erfolgreich erstellt');
             }
             setModalOpen(false);
             fetchData();
-        } catch (err: unknown) {
-            setError((err as { response?: { data?: { error?: string } } })?.response?.data?.error || 'Fehler beim Speichern');
+        } catch (err: any) {
+            setError(err.response?.data?.error || 'Aktion fehlgeschlagen');
         } finally {
             setSaving(false);
         }
     };
 
     const handleDelete = async (u: User) => {
-        if (!confirm(`Benutzer "${u.username}" wirklich löschen?`)) return;
-        await api.delete(`/users/${u.id}`);
-        showToast('Benutzer gelöscht');
-        fetchData();
+        if (u.username.toLowerCase() === 'admin') {
+            alert('Der Haupt-Administrator kann nicht gelöscht werden.');
+            return;
+        }
+        if (!confirm(`Möchtest du den Benutzer "${u.username}" wirklich unwiderruflich löschen?`)) return;
+
+        try {
+            await api.delete(`/users/${u.id}`);
+            showToast('Benutzer gelöscht');
+            fetchData();
+        } catch (err: any) {
+            alert(err.response?.data?.error || 'Fehler beim Löschen');
+        }
     };
+
+    const filteredUsers = users.filter(u =>
+        u.username.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        u.email.toLowerCase().includes(searchTerm.toLowerCase())
+    );
 
     const togglePermission = (p: Permission) => {
         setForm(f => ({
@@ -153,176 +168,229 @@ export default function AdminUsersPage() {
     };
 
     return (
-        <div>
+        <div className="space-y-6">
             {toast && (
-                <div className="toast-container">
-                    <div className="toast toast-success">
-                        <CheckCircle size={18} /> {toast}
+                <div className="fixed top-24 right-8 z-50 animate-in slide-in-from-right-8 duration-300">
+                    <div className="bg-green-500 text-white px-6 py-3 rounded-xl shadow-2xl flex items-center gap-3">
+                        <CheckCircle2 size={20} />
+                        <span className="font-semibold">{toast}</span>
                     </div>
                 </div>
             )}
 
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-10">
                 <div>
-                    <h1 className="page-title">Benutzerverwaltung</h1>
-                    <p className="page-subtitle" style={{ marginBottom: 0 }}>{users.length} Benutzer</p>
+                    <h1 className="text-4xl font-extrabold flex items-center gap-4 tracking-tight">
+                        <div className="p-3 bg-purple-500/10 rounded-2xl shadow-inner">
+                            <UserIcon className="w-10 h-10 text-purple-500" />
+                        </div>
+                        Benutzerverwaltung
+                    </h1>
+                    <p className="text-[var(--text-secondary)] mt-2 ml-16 text-lg font-medium opacity-80">Verwalte Zugänge, Rollen und Berechtigungen</p>
                 </div>
-                <button onClick={openCreate} className="btn btn-primary">
-                    <Plus size={16} /> Neuer Benutzer
-                </button>
+                <div className="flex items-center gap-4 w-full md:w-auto">
+                    <div className="relative flex-1 md:w-72">
+                        <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-[var(--text-muted)]" />
+                        <input
+                            type="text"
+                            name="user-search"
+                            autoComplete="off"
+                            placeholder="Suchen nach Name oder E-Mail..."
+                            className="input pl-12 h-12 text-base glass-panel border-none shadow-lg"
+                            value={searchTerm}
+                            onChange={e => setSearchTerm(e.target.value)}
+                        />
+                    </div>
+                    <button onClick={openCreate} className="btn btn-primary flex items-center gap-2 h-12 px-6 shadow-xl shadow-purple-500/20">
+                        <UserPlus size={20} /> <span className="hidden sm:inline">Neuer Benutzer</span>
+                    </button>
+                </div>
             </div>
 
-            <div className="table-wrapper">
-                {loading ? (
-                    <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-muted)' }}>
-                        <Loader2 size={24} style={{ animation: 'spin 0.6s linear infinite', margin: 'auto' }} />
-                    </div>
-                ) : (
-                    <table>
+            <div className="glass-panel overflow-hidden border-none shadow-2xl">
+                <div className="overflow-x-auto">
+                    <table className="w-full text-left border-collapse">
                         <thead>
-                            <tr>
-                                <th>Benutzer</th>
-                                <th>E-Mail</th>
-                                <th>Rolle</th>
-                                <th>Status</th>
-                                <th>Admin</th>
-                                <th>Aktionen</th>
+                            <tr className="border-b border-[var(--border-color)] bg-white/[0.02]">
+                                <th className="px-8 py-5 text-xs font-bold uppercase tracking-wider text-[var(--text-muted)]">Benutzer</th>
+                                <th className="px-8 py-5 text-xs font-bold uppercase tracking-wider text-[var(--text-muted)]">Kontakt</th>
+                                <th className="px-8 py-5 text-xs font-bold uppercase tracking-wider text-[var(--text-muted)]">Rolle</th>
+                                <th className="px-8 py-5 text-xs font-bold uppercase tracking-wider text-[var(--text-muted)]">Status</th>
+                                <th className="px-8 py-5 text-xs font-bold uppercase tracking-wider text-[var(--text-muted)] text-right">Aktionen</th>
                             </tr>
                         </thead>
-                        <tbody>
-                            {users.map(u => (
-                                <tr key={u.id}>
-                                    <td><strong>{u.username}</strong></td>
-                                    <td style={{ color: 'var(--text-secondary)' }}>{u.email}</td>
-                                    <td>
-                                        {u.role ? (
-                                            <span className="badge badge-purple">{u.role.name}</span>
-                                        ) : (
-                                            <span style={{ color: 'var(--text-muted)', fontSize: 12 }}>Keine Rolle</span>
-                                        )}
-                                    </td>
-                                    <td>
-                                        {u.isActive
-                                            ? <span className="badge badge-green">Aktiv</span>
-                                            : <span className="badge badge-red">Gesperrt</span>}
-                                    </td>
-                                    <td>
-                                        {u.isAdmin
-                                            ? <Shield size={16} color="var(--accent-primary)" />
-                                            : <span style={{ color: 'var(--text-muted)', fontSize: 12 }}>–</span>}
-                                    </td>
-                                    <td>
-                                        <div style={{ display: 'flex', gap: 8 }}>
-                                            <button onClick={() => openEdit(u)} className="btn-icon" title="Bearbeiten">
-                                                <Pencil size={15} />
-                                            </button>
-                                            <button onClick={() => handleDelete(u)} className="btn-icon" title="Löschen"
-                                                style={{ color: 'var(--danger)' }}>
-                                                <Trash2 size={15} />
-                                            </button>
-                                        </div>
+                        <tbody className="divide-y divide-[var(--border-color)]">
+                            {loading ? (
+                                Array.from({ length: 3 }).map((_, i) => (
+                                    <tr key={i} className="animate-pulse">
+                                        <td colSpan={5} className="px-6 py-8">
+                                            <div className="h-4 bg-[var(--bg-secondary)] rounded w-3/4 mx-auto" />
+                                        </td>
+                                    </tr>
+                                ))
+                            ) : filteredUsers.length > 0 ? (
+                                filteredUsers.map(u => (
+                                    <tr key={u.id} className="hover:bg-[var(--bg-secondary)]/20 transition-colors group">
+                                        <td className="px-6 py-4">
+                                            <div className="flex items-center gap-3">
+                                                <div className="flex flex-col">
+                                                    <span className="font-bold flex items-center gap-1.5 text-lg">
+                                                        {u.username}
+                                                        {u.isAdmin && <Shield size={16} className="text-blue-500" />}
+                                                    </span>
+                                                    <span className="text-[10px] text-[var(--text-muted)] tracking-wider">USER-ID: {u.id.slice(0, 8)}...</span>
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td className="px-6 py-4">
+                                            <div className="flex items-center gap-2 text-sm text-[var(--text-secondary)]">
+                                                <Mail size={14} />
+                                                {u.email}
+                                            </div>
+                                        </td>
+                                        <td className="px-6 py-4">
+                                            {u.role ? (
+                                                <span className="badge badge-purple px-2.5 py-1 text-[11px]">{u.role.name}</span>
+                                            ) : (
+                                                <span className="text-xs text-[var(--text-muted)]">Standard</span>
+                                            )}
+                                        </td>
+                                        <td className="px-6 py-4">
+                                            {u.isActive ? (
+                                                <div className="flex items-center gap-1.5 text-green-500 text-xs font-semibold">
+                                                    <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
+                                                    Aktiv
+                                                </div>
+                                            ) : (
+                                                <div className="flex items-center gap-1.5 text-red-500 text-xs font-semibold">
+                                                    <div className="w-1.5 h-1.5 rounded-full bg-red-500" />
+                                                    Gesperrt
+                                                </div>
+                                            )}
+                                        </td>
+                                        <td className="px-6 py-4 text-right">
+                                            <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                <button onClick={() => openEdit(u)} className="p-2 hover:bg-blue-500/10 text-blue-500 rounded-lg transition-colors" title="Bearbeiten">
+                                                    <Pencil size={18} />
+                                                </button>
+                                                {u.username.toLowerCase() !== 'admin' && (
+                                                    <button onClick={() => handleDelete(u)} className="p-2 hover:bg-red-500/10 text-red-500 rounded-lg transition-colors" title="Löschen">
+                                                        <Trash2 size={18} />
+                                                    </button>
+                                                )}
+                                            </div>
+                                        </td>
+                                    </tr>
+                                ))
+                            ) : (
+                                <tr>
+                                    <td colSpan={5} className="px-6 py-12 text-center text-[var(--text-muted)]">
+                                        Keine Benutzer gefunden.
                                     </td>
                                 </tr>
-                            ))}
+                            )}
                         </tbody>
                     </table>
-                )}
+                </div>
             </div>
 
             {/* Modal */}
             {modalOpen && (
-                <div className="modal-overlay" onClick={e => { if (e.target === e.currentTarget) setModalOpen(false); }}>
-                    <div className="modal">
-                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
-                            <h2 style={{ fontSize: 18, fontWeight: 700 }}>
-                                {editUser ? 'Benutzer bearbeiten' : 'Neuer Benutzer'}
+                <div className="modal-overlay z-[1000] p-4 sm:p-8" onClick={e => { if (e.target === e.currentTarget) setModalOpen(false); }}>
+                    <div className="modal glass-panel max-w-2xl w-full max-h-[95vh] overflow-y-auto p-6 sm:p-10 border-white/10 shadow-[0_0_80px_-15px_rgba(139,92,246,0.3)]">
+                        <div className="flex items-center justify-between mb-8 sticky top-0 bg-[var(--bg-secondary)]/50 backdrop-blur-xl z-10 py-4 border-b border-white/5">
+                            <h2 className="text-3xl font-extrabold flex items-center gap-3 tracking-tight">
+                                {editUser ? <Pencil className="text-blue-500 w-8 h-8" /> : <UserPlus className="text-purple-500 w-8 h-8" />}
+                                {editUser ? 'Benutzer bearbeiten' : 'Neuen Benutzer anlegen'}
                             </h2>
-                            <button onClick={() => setModalOpen(false)} className="btn-icon"><X size={18} /></button>
+                            <button onClick={() => setModalOpen(false)} className="p-3 hover:bg-white/5 rounded-2xl transition-all hover:rotate-90">
+                                <X size={28} />
+                            </button>
                         </div>
 
                         {error && (
-                            <div style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 'var(--radius-sm)', padding: '10px 14px', fontSize: 14, color: 'var(--danger)', marginBottom: 16 }}>
-                                {error}
+                            <div className="p-4 rounded-xl bg-red-500/10 border border-red-500/20 text-red-500 text-sm mb-6 flex items-start gap-3">
+                                <AlertCircle className="w-5 h-5 mt-0.5 shrink-0" />
+                                <span className="font-medium">{error}</span>
                             </div>
                         )}
 
-                        <div className="form-group">
-                            <label className="label">Benutzername *</label>
-                            <input className="input" value={form.username} onChange={e => setForm(f => ({ ...f, username: e.target.value }))} placeholder="username" />
-                        </div>
-                        <div className="form-group">
-                            <label className="label">E-Mail *</label>
-                            <input className="input" type="email" value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} placeholder="user@schule.de" />
-                        </div>
-                        <div className="form-group">
-                            <label className="label">{editUser ? 'Neues Passwort (leer lassen = unverändert)' : 'Passwort *'}</label>
-                            <input className="input" type="password" value={form.password} onChange={e => setForm(f => ({ ...f, password: e.target.value }))} placeholder="••••••••" />
-                        </div>
-                        <div className="form-group">
-                            <label className="label">Rolle</label>
-                            <select className="input" value={form.roleId} onChange={e => setForm(f => ({ ...f, roleId: e.target.value }))}>
-                                <option value="">Keine Rolle</option>
-                                {roles.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
-                            </select>
-                        </div>
-
-                        <div style={{ display: 'flex', gap: 16, marginBottom: 20 }}>
-                            <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: 14 }}>
-                                <label className="switch">
-                                    <input type="checkbox" checked={form.isAdmin} onChange={e => setForm(f => ({ ...f, isAdmin: e.target.checked }))} />
-                                    <span className="switch-slider" />
-                                </label>
-                                Administrator
-                            </label>
-                            <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: 14 }}>
-                                <label className="switch">
-                                    <input type="checkbox" checked={form.isActive} onChange={e => setForm(f => ({ ...f, isActive: e.target.checked }))} />
-                                    <span className="switch-slider" />
-                                </label>
-                                Aktiv
-                            </label>
-                            <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: 14 }}>
-                                <label className="switch">
-                                    <input type="checkbox" checked={form.requirePasswordChange} onChange={e => setForm(f => ({ ...f, requirePasswordChange: e.target.checked }))} />
-                                    <span className="switch-slider" />
-                                </label>
-                                PW-Änderung erzwingen
-                            </label>
-                        </div>
-
-                        <div className="form-group">
-                            <label className="label">Individuelle Berechtigungen</label>
-                            <div className="checkbox-group">
-                                {ALL_PERMISSIONS.map(p => (
-                                    <label key={p.value} className="checkbox-item">
-                                        <input type="checkbox" checked={form.permissions.includes(p.value)} onChange={() => togglePermission(p.value)} />
-                                        {p.label}
-                                    </label>
-                                ))}
+                        <div className="space-y-6">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div className="form-group">
+                                    <label className="label">Benutzername *</label>
+                                    <input className="input" value={form.username} onChange={e => setForm(f => ({ ...f, username: e.target.value }))} placeholder="z.B. j.schmidt" />
+                                </div>
+                                <div className="form-group">
+                                    <label className="label">E-Mail *</label>
+                                    <input className="input" type="email" value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} placeholder="user@schule.de" />
+                                </div>
+                                <div className="form-group">
+                                    <label className="label">{editUser ? 'Neues Passwort (optional)' : 'Passwort *'}</label>
+                                    <input className="input" type="password" value={form.password} onChange={e => setForm(f => ({ ...f, password: e.target.value }))} placeholder="••••••••" />
+                                    {editUser && <p className="text-[10px] text-[var(--text-muted)] mt-1">Nur ausfüllen zum Ändern</p>}
+                                </div>
+                                <div className="form-group">
+                                    <label className="label">Rolle</label>
+                                    <select className="input" value={form.roleId} onChange={e => setForm(f => ({ ...f, roleId: e.target.value }))}>
+                                        <option value="">Keine Rolle (Standard)</option>
+                                        {roles.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
+                                    </select>
+                                </div>
                             </div>
-                        </div>
 
-                        <div className="form-group">
-                            <label className="label">Spezifische Tools (Direktzuweisung)</label>
-                            <div className="checkbox-group" style={{ maxHeight: 150, overflowY: 'auto' }}>
-                                {tools.map(t => (
-                                    <label key={t.id} className="checkbox-item">
-                                        <input type="checkbox" checked={form.toolIds.includes(t.id)} onChange={() => toggleTool(t.id)} />
-                                        {t.name}
-                                    </label>
-                                ))}
+                            <div className="p-6 bg-[var(--bg-secondary)]/30 rounded-2xl space-y-4">
+                                <h3 className="text-sm font-bold uppercase tracking-widest text-[var(--text-muted)] mb-4">Berechtigungen & Status</h3>
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                    <Toggle label="Administrator-Rechte" checked={form.isAdmin} onChange={e => setForm(f => ({ ...f, isAdmin: e.target.checked }))} sublabel="Voller Zugriff auf das Admin-Panel" />
+                                    <Toggle label="Konto Aktiv" checked={form.isActive} onChange={e => setForm(f => ({ ...f, isActive: e.target.checked }))} sublabel="Benutzer kann sich anmelden" />
+                                    <Toggle label="PW-Wechsel erzwingen" checked={form.requirePasswordChange} onChange={e => setForm(f => ({ ...f, requirePasswordChange: e.target.checked }))} sublabel="Nach dem nächsten Login" />
+                                </div>
                             </div>
-                        </div>
 
-                        <div style={{ display: 'flex', gap: 12, justifyContent: 'flex-end', marginTop: 8 }}>
-                            <button onClick={() => setModalOpen(false)} className="btn btn-secondary">Abbrechen</button>
-                            <button onClick={handleSave} className="btn btn-primary" disabled={saving}>
-                                {saving ? <><Loader2 size={14} style={{ animation: 'spin 0.6s linear infinite' }} /> Speichern...</> : 'Speichern'}
-                            </button>
+                            <div className="space-y-4">
+                                <h3 className="text-sm font-bold uppercase tracking-widest text-[var(--text-muted)]">Individuelle Zugriffs-Berechtigungen</h3>
+                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 gap-4">
+                                    {ALL_PERMISSIONS.map(p => (
+                                        <label key={p.value} className={`flex items-center gap-4 p-4 rounded-2xl border transition-all cursor-pointer select-none ${form.permissions.includes(p.value)
+                                            ? 'bg-blue-500/10 border-blue-500/40 text-blue-500'
+                                            : 'bg-[var(--bg-secondary)]/50 border-[var(--border-color)] hover:border-blue-500/30'
+                                            }`}>
+                                            <input type="checkbox" className="hidden" checked={form.permissions.includes(p.value)} onChange={() => togglePermission(p.value)} />
+                                            {form.permissions.includes(p.value) ? <CheckCircle2 size={20} /> : <div className="w-5 h-5 rounded-lg border-2 border-current opacity-20" />}
+                                            <span className="font-semibold text-sm">{p.label}</span>
+                                        </label>
+                                    ))}
+                                </div>
+                            </div>
+
+                            <div className="flex gap-4 justify-end pt-6 border-t border-[var(--border-color)]">
+                                <button type="button" onClick={() => setModalOpen(false)} className="btn btn-secondary px-6">Abbrechen</button>
+                                <button onClick={handleSave} disabled={saving} className="btn btn-primary px-8 flex items-center gap-2">
+                                    {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save size={18} />}
+                                    {editUser ? 'Änderungen speichern' : 'Benutzer anlegen'}
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>
             )}
         </div>
+    );
+}
+
+function Toggle({ label, sublabel, checked, onChange }: { label: string, sublabel?: string, checked: boolean, onChange: (e: React.ChangeEvent<HTMLInputElement>) => void }) {
+    return (
+        <label className="flex items-start gap-3 cursor-pointer group">
+            <div className="relative mt-1">
+                <input type="checkbox" className="sr-only" checked={checked} onChange={onChange} />
+                <div className={`w-10 h-5 rounded-full transition-colors ${checked ? 'bg-blue-500' : 'bg-gray-600'}`} />
+                <div className={`absolute left-0.5 top-0.5 w-4 h-4 rounded-full bg-white transition-transform ${checked ? 'translate-x-5' : 'translate-x-0'}`} />
+            </div>
+            <div className="flex flex-col">
+                <span className="text-sm font-semibold">{label}</span>
+                {sublabel && <span className="text-[10px] text-[var(--text-muted)] transition-colors group-hover:text-[var(--text-secondary)]">{sublabel}</span>}
+            </div>
+        </label>
     );
 }

@@ -1,50 +1,81 @@
 import { Router, Request, Response } from 'express';
-import fs from 'fs';
-import path from 'path';
+import prisma from '../lib/prisma';
 import { authenticate } from '../middleware/auth';
 
 const router = Router();
-const settingsPath = path.join(__dirname, '..', '..', 'settings.json');
+const SETTINGS_ID = 'system-settings';
 
-const defaultSettings = {
-    appName: 'IT Portal',
-    subtitle: 'Schul-IT Management',
-    icon: 'Monitor'
-};
-
-const getSettings = () => {
-    if (!fs.existsSync(settingsPath)) return defaultSettings;
+// GET /api/settings - Einstellungen abrufen (Öffentlich, für Theme/Logo)
+router.get('/', async (req: Request, res: Response) => {
     try {
-        return JSON.parse(fs.readFileSync(settingsPath, 'utf-8'));
-    } catch {
-        return defaultSettings;
-    }
-};
+        let settings = await prisma.setting.findUnique({
+            where: { id: SETTINGS_ID }
+        });
 
-router.get('/', (req: Request, res: Response) => {
-    res.json(getSettings());
+        if (!settings) {
+            // Falls keine existieren, Standardwerte anlegen
+            settings = await prisma.setting.create({
+                data: { id: SETTINGS_ID }
+            });
+        }
+
+        res.json(settings);
+    } catch (err) {
+        console.error('[Get Settings Error]', err);
+        res.status(500).json({ error: 'Einstellungen konnten nicht abgerufen werden' });
+    }
 });
 
-router.put('/', authenticate, (req: Request, res: Response) => {
+// PUT /api/settings - Einstellungen aktualisieren (Nur Admin)
+router.put('/', authenticate, async (req: Request, res: Response) => {
     // @ts-ignore
     if (!req.user?.isAdmin) {
         return res.status(403).json({ error: 'Nur Administratoren können Einstellungen ändern' });
     }
 
-    const current = getSettings();
-    const { appName, subtitle, icon } = req.body;
-
-    const newSettings = {
-        ...current,
-        ...(appName && { appName }),
-        ...(subtitle && { subtitle }),
-        ...(icon && { icon })
-    };
+    const {
+        appName,
+        subtitle,
+        logoUrl,
+        primaryColor,
+        secondaryColor,
+        accentColor,
+        loginTitle,
+        loginSubtitle,
+        fontFamily
+    } = req.body;
 
     try {
-        fs.writeFileSync(settingsPath, JSON.stringify(newSettings, null, 2));
-        res.json(newSettings);
+        const updated = await prisma.setting.upsert({
+            where: { id: SETTINGS_ID },
+            update: {
+                appName,
+                subtitle,
+                logoUrl,
+                primaryColor,
+                secondaryColor,
+                accentColor,
+                loginTitle,
+                loginSubtitle,
+                fontFamily
+            },
+            create: {
+                id: SETTINGS_ID,
+                appName,
+                subtitle,
+                logoUrl,
+                primaryColor,
+                secondaryColor,
+                accentColor,
+                loginTitle,
+                loginSubtitle,
+                fontFamily
+            }
+        });
+
+        res.json(updated);
     } catch (err) {
+        console.error('[Update Settings Error]', err);
         res.status(500).json({ error: 'Einstellungen konnten nicht gespeichert werden' });
     }
 });

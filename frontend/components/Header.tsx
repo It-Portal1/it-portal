@@ -8,6 +8,7 @@ import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
+import { useSettings } from '@/contexts/SettingsContext';
 import {
     Shield, Sun, Moon, User, Settings, LogOut,
     ChevronDown, LayoutDashboard, KeyRound
@@ -15,6 +16,7 @@ import {
 
 export default function Header() {
     const { user, logout } = useAuth();
+    const { settings } = useSettings();
     const router = useRouter();
     const [isDark, setIsDark] = useState(true);
     const [menuOpen, setMenuOpen] = useState(false);
@@ -84,12 +86,16 @@ export default function Header() {
                         boxShadow: 'var(--shadow-accent)',
                         flexShrink: 0,
                     }}>
-                        <Shield size={20} color="white" />
+                        {settings.logoUrl ? (
+                            <img src={settings.logoUrl} alt="Logo" style={{ width: 24, height: 24, objectFit: 'contain' }} />
+                        ) : (
+                            <Shield size={20} color="white" />
+                        )}
                     </div>
                     <div>
-                        <div style={{ fontSize: 16, fontWeight: 700, lineHeight: 1 }}>IT Portal</div>
+                        <div style={{ fontSize: 16, fontWeight: 700, lineHeight: 1 }}>{settings.appName}</div>
                         <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>
-                            Schulverwaltung
+                            {settings.subtitle || 'Schulverwaltung'}
                         </div>
                     </div>
                 </Link>

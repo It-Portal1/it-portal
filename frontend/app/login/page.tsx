@@ -7,10 +7,12 @@
 import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
+import { useSettings } from '@/contexts/SettingsContext';
 import { Eye, EyeOff, Shield, Loader2 } from 'lucide-react';
 
 function LoginForm() {
     const { login, user, loading } = useAuth();
+    const { settings } = useSettings();
     const router = useRouter();
     const searchParams = useSearchParams();
     const returnUrl = searchParams.get('returnUrl');
@@ -108,13 +110,17 @@ function LoginForm() {
                         marginBottom: 20,
                         boxShadow: 'var(--shadow-accent)',
                     }}>
-                        <Shield size={32} color="white" />
+                        {settings.logoUrl ? (
+                            <img src={settings.logoUrl} alt="Logo" style={{ width: 40, height: 40, objectFit: 'contain' }} />
+                        ) : (
+                            <Shield size={32} color="white" />
+                        )}
                     </div>
                     <h1 style={{ fontSize: 26, fontWeight: 700, marginBottom: 6 }}>
-                        IT Portal
+                        {settings.loginTitle || settings.appName}
                     </h1>
                     <p style={{ color: 'var(--text-secondary)', fontSize: 14 }}>
-                        Melde dich mit deinen Zugangsdaten an
+                        {settings.loginSubtitle || 'Melde dich mit deinen Zugangsdaten an'}
                     </p>
                 </div>
 

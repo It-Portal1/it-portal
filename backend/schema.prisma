@@ -6,8 +6,8 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider = "sqlite"
+  url      = "file:./dev.db"
 }
 
 // Note: Enums in SQLite are handled as Strings by Prisma
@@ -132,4 +132,19 @@ model RefreshToken {
   userId    String
   expiresAt DateTime
   createdAt DateTime @default(now())
+}
+
+// Einstellungen für das UI-Branding
+model Setting {
+  id            String   @id @default("system-settings")
+  appName       String   @default("IT Portal")
+  subtitle      String   @default("Schul-IT Management")
+  logoUrl       String?
+  primaryColor  String   @default("#3b82f6")
+  secondaryColor String   @default("#1e40af")
+  accentColor   String   @default("#60a5fa")
+  loginTitle    String   @default("Willkommen zurück")
+  loginSubtitle String   @default("Bitte melde dich an, um fortzufahren")
+  fontFamily    String   @default("Inter")
+  updatedAt     DateTime @updatedAt
 }

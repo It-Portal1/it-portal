@@ -159,7 +159,7 @@ router.post(
     requirePermission(Permission.CREATE_TOOLS),
     async (req: Request, res: Response) => {
         try {
-            const { name, description, icon, type, url, visibility, isActive, isLocked, roleIds, userIds, sortOrder } = req.body;
+            const { name, description, icon, type, url, filePath, visibility, isActive, isLocked, roleIds, userIds, sortOrder } = req.body;
 
             if (!name || !type) {
                 res.status(400).json({ error: 'Name und Typ sind erforderlich' });
@@ -168,6 +168,11 @@ router.post(
 
             if (type === ToolType.EXTERNAL_LINK && !url) {
                 res.status(400).json({ error: 'URL für externen Link erforderlich' });
+                return;
+            }
+
+            if (type === ToolType.HTML_FILE && !filePath) {
+                res.status(400).json({ error: 'HTML-Datei erforderlich' });
                 return;
             }
 
@@ -187,6 +192,7 @@ router.post(
                     icon,
                     type: type as ToolType,
                     url,
+                    filePath,
                     visibility: (visibility as ToolVisibility) ?? ToolVisibility.PUBLIC,
                     isActive: isActive ?? true,
                     isLocked: isLocked ?? false,

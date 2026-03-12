@@ -169,8 +169,38 @@ async function ensureAdminUser() {
     }
 }
 
+async function ensureSystemSettings() {
+    try {
+        const SETTINGS_ID = 'system-settings';
+        const existing = await prisma.setting.findUnique({ where: { id: SETTINGS_ID } });
+        if (!existing) {
+            await prisma.setting.create({
+                data: {
+                    id: SETTINGS_ID,
+                    appName: 'IT Portal',
+                    subtitle: 'Schul-IT Management',
+                    loginTitle: 'Willkommen zurück',
+                    loginSubtitle: 'Bitte melde dich an, um fortzufahren',
+                    primaryColor: '#3b82f6',
+                    secondaryColor: '#1e40af',
+                    accentColor: '#60a5fa',
+                    fontFamily: 'Inter'
+                }
+            });
+            console.log('✅ Standard-Systemeinstellungen erstellt.');
+        }
+    } catch (error) {
+        console.error('⚠️ Konnte Systemeinstellungen nicht sicherstellen:', error);
+    }
+}
+
 // ─── Server starten ──────────────────────────────────────────────────────────
-ensureAdminUser().then(() => {
+async function initialize() {
+    await ensureAdminUser();
+    await ensureSystemSettings();
+}
+
+initialize().then(() => {
     app.listen(PORT, () => {
         console.log(`🚀 IT Portal Backend läuft auf http://localhost:${PORT}`);
         console.log(`📁 Upload-Verzeichnis: ${uploadDir}`);

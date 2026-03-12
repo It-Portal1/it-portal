@@ -49,21 +49,24 @@ sudo -u postgres psql -c "ALTER USER $DB_USER WITH PASSWORD '$DB_PASS';"
 sudo -u postgres psql -c "GRANT ALL PRIVILEGES ON DATABASE $DB_NAME TO $DB_USER;"
 sudo -u postgres psql -c "ALTER DATABASE $DB_NAME OWNER TO $DB_USER;"
 
-# 4. Repository klonen
-echo "📥 [4/7] Projekt von GitHub klonen..."
+# 4. Repository klonen oder aktualisieren
+echo "📥 [4/7] Projekt von GitHub abrufen..."
 mkdir -p /var/www
 if [ -d "$PROJECT_DIR" ]; then
-    echo "⚠️ Verzeichnis existiert bereits, lösche altes Verzeichnis..."
-    rm -rf "$PROJECT_DIR"
+    echo "🔄 Verzeichnis existiert bereits, aktualisiere mit 'git pull'..."
+    cd "$PROJECT_DIR"
+    git pull
+else
+    git clone "$REPO_URL" "$PROJECT_DIR"
+    cd "$PROJECT_DIR"
 fi
-git clone "$REPO_URL" "$PROJECT_DIR"
-cd "$PROJECT_DIR"
 
 # 5. Konfiguration (.env Dateien)
 echo "⚙️ [5/7] Umgebungsvariablen konfigurieren..."
 
 # Backend .env
-cat > backend/.env << EOF
+if [ ! -f "backend/.env" ]; then
+    cat > backend/.env << EOF
 DATABASE_URL="postgresql://$DB_USER:$DB_PASS@127.0.0.1:5432/$DB_NAME?schema=public"
 PORT=5000
 JWT_ACCESS_SECRET="gen-$(date +%s | sha256sum | base64 | head -c 32)"
@@ -71,12 +74,19 @@ JWT_REFRESH_SECRET="gen-$(date +%s | sha256sum | base64 | head -c 32)"
 FRONTEND_URL="https://$DOMAIN"
 NODE_ENV="production"
 EOF
+else
+    echo "✅ Backend .env existiert bereits, überspringe Erstellung."
+fi
 
 # Frontend .env.local
-cat > frontend/.env.local << EOF
+if [ ! -f "frontend/.env.local" ]; then
+    cat > frontend/.env.local << EOF
 # In Produktion nutzen wir den relativen Pfad /api, da alles über denselben Nginx läuft
 NEXT_PUBLIC_API_URL="/api"
 EOF
+else
+    echo "✅ Frontend .env.local existiert bereits, überspringe Erstellung."
+fi
 
 # 6. Build & Start
 echo "🏗️ [6/7] Backend und Frontend bauen..."
@@ -84,8 +94,9 @@ echo "🏗️ [6/7] Backend und Frontend bauen..."
 # Backend
 cd backend
 npm install
-npx prisma db push
-npm run seed
+npx prisma db push --accept-data-loss
+# Seed nur wenn nötig (Prisma seed script sollte selbst prüfen, aber hier sicherheitshalber)
+npm run seed || echo "⚠️ Seed übersprungen oder fehlgeschlagen (evtl. Daten bereits vorhanden)"
 npm run build
 pm2 start dist/server.js --name "it-portal-backend"
 

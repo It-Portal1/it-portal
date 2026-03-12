@@ -9,13 +9,14 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import Header from '@/components/Header';
-import { Users, Shield, Wrench, LayoutDashboard } from 'lucide-react';
+import { Users, Shield, Wrench, LayoutDashboard, Settings } from 'lucide-react';
 
 const navItems = [
     { href: '/admin', label: 'Übersicht', icon: <LayoutDashboard size={18} />, exact: true },
     { href: '/admin/users', label: 'Benutzer', icon: <Users size={18} /> },
     { href: '/admin/roles', label: 'Rollen', icon: <Shield size={18} /> },
     { href: '/admin/tools', label: 'Tools', icon: <Wrench size={18} /> },
+    { href: '/admin/settings', label: 'Einstellungen', icon: <Settings size={18} /> },
 ];
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {

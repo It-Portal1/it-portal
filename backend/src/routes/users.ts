@@ -27,13 +27,67 @@ router.get('/', authenticate, async (req: Request, res: Response) => {
     }
 });
 
+// POST /api/users - Neuen Benutzer erstellen (Nur Admin)
+router.post('/', authenticate, async (req: Request, res: Response) => {
+    // @ts-ignore
+    if (!req.user?.isAdmin) return res.status(403).json({ error: 'Nur Admins können Benutzer erstellen' });
+
+    const { username, email, password, roleId, isAdmin, isActive, requirePasswordChange, permissions, toolIds } = req.body;
+
+    if (!username || !email || !password) {
+        return res.status(400).json({ error: 'Username, Email und Passwort sind erforderlich' });
+    }
+
+    try {
+        const existingUser = await prisma.user.findFirst({
+            where: { OR: [{ username }, { email }] }
+        });
+
+        if (existingUser) {
+            return res.status(400).json({ error: 'Benutzername oder Email bereits vergeben' });
+        }
+
+        const passwordHash = await bcrypt.hash(password, 12);
+
+        const newUser = await prisma.user.create({
+            data: {
+                username,
+                email,
+                passwordHash,
+                roleId: roleId || null,
+                isAdmin: !!isAdmin,
+                isActive: isActive !== false,
+                requirePasswordChange: !!requirePasswordChange,
+                userPermissions: {
+                    create: permissions?.map((p: any) => ({ permission: p })) || []
+                },
+                toolAccess: {
+                    create: toolIds?.map((tId: any) => ({ toolId: tId })) || []
+                }
+            },
+            select: {
+                id: true,
+                username: true,
+                email: true,
+                isAdmin: true,
+                isActive: true,
+            }
+        });
+
+        res.status(201).json(newUser);
+    } catch (err) {
+        console.error('[User Creation Error]', err);
+        res.status(500).json({ error: 'Fehler beim Erstellen des Benutzers' });
+    }
+});
+
 // PUT /api/users/:id - Benutzer bearbeiten
 router.put('/:id', authenticate, async (req: Request, res: Response) => {
     // @ts-ignore
     if (!req.user?.isAdmin) return res.status(403).json({ error: 'Nur Admins können Benutzer bearbeiten' });
 
     const { id } = req.params;
-    const { username, email, roleId, isActive, password } = req.body;
+    const { username, email, roleId, isActive, password, isAdmin, requirePasswordChange, permissions, toolIds } = req.body;
 
     try {
         const user = await prisma.user.findUnique({ where: { id } });
@@ -54,8 +108,10 @@ router.put('/:id', authenticate, async (req: Request, res: Response) => {
         const data: any = {
             username,
             email,
-            roleId,
-            isActive
+            roleId: roleId || null,
+            isActive,
+            isAdmin,
+            requirePasswordChange
         };
 
         // Passwort nur updaten, wenn eines gesendet wurde
@@ -63,9 +119,33 @@ router.put('/:id', authenticate, async (req: Request, res: Response) => {
             data.passwordHash = await bcrypt.hash(password, 12);
         }
 
+        // Berechtigungen und Tool-Zugriff aktualisieren (Löschen und Neu-Erstellen für Einfachheit)
+        if (permissions) {
+            await prisma.userPermission.deleteMany({ where: { userId: id } });
+            data.userPermissions = {
+                create: permissions.map((p: any) => ({ permission: p }))
+            };
+        }
+
+        if (toolIds) {
+            await prisma.toolUserAccess.deleteMany({ where: { userId: id } });
+            data.toolAccess = {
+                create: toolIds.map((tId: any) => ({ toolId: tId }))
+            };
+        }
+
         const updatedUser = await prisma.user.update({
             where: { id },
-            data
+            data,
+            select: {
+                id: true,
+                username: true,
+                email: true,
+                isAdmin: true,
+                isActive: true,
+                role: true,
+                userPermissions: true
+            }
         });
 
         res.json(updatedUser);
