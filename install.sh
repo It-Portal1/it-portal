@@ -26,7 +26,7 @@ echo -e "${BLUE}🚀 Starte IT Portal Ultimate Installation...${NC}"
 # 1. System Update & Dependencies
 echo -e "${GREEN}[1/7] System-Update und Abhängigkeiten...${NC}"
 apt update && apt upgrade -y
-apt install -y curl git postgresql postgresql-contrib nginx
+apt install -y curl git nginx
 
 # 2. Node.js (v20) & PM2
 echo -e "${GREEN}[2/7] Node.js und PM2 installieren...${NC}"
@@ -34,11 +34,9 @@ curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
 apt install -y nodejs
 npm install -g pm2
 
-# 3. PostgreSQL Datenbank Setup
-echo -e "${GREEN}[3/7] Datenbank initialisieren...${NC}"
-sudo -u postgres psql -c "CREATE DATABASE $DB_NAME;" || true
-sudo -u postgres psql -c "ALTER USER $DB_USER WITH PASSWORD '$DB_PASS';"
-sudo -u postgres psql -c "GRANT ALL PRIVILEGES ON DATABASE $DB_NAME TO $DB_USER;"
+# 3. Datenbank Setup (SQLite)
+echo -e "${GREEN}[3/7] Datenbank vorbereiten...${NC}"
+# SQLite benötigt keine separate Installation oder User-Setup
 
 # 4. Repository klonen & Config
 echo -e "${GREEN}[4/7] Projekt von GitHub abrufen und konfigurieren...${NC}"
@@ -53,11 +51,11 @@ fi
 
 # Backend .env
 cat > backend/.env << EOF
-DATABASE_URL="postgresql://$DB_USER:$DB_PASS@127.0.0.1:5432/$DB_NAME?schema=public"
+DATABASE_URL="file:./dev.db"
 PORT=5000
 JWT_ACCESS_SECRET="gen-$(date +%s | sha256sum | head -c 32)"
 JWT_REFRESH_SECRET="gen-$(date +%s | sha256sum | head -c 32)"
-FRONTEND_URL="https://$DOMAIN"
+FRONTEND_URL="http://$DOMAIN"
 NODE_ENV="production"
 EOF
 
@@ -115,18 +113,9 @@ ln -sf $NGINX_CONF /etc/nginx/sites-enabled/
 rm -f /etc/nginx/sites-enabled/default
 systemctl restart nginx
 
-# 7. Cloudflare Tunnel installieren
-echo -e "${GREEN}[7/7] Cloudflared installieren...${NC}"
-if ! command -v cloudflared &> /dev/null; then
-    curl -L --output cloudflared.deb https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64.deb
-    dpkg -i cloudflared.deb
-fi
-
 echo -e "\n${BLUE}==========================================================================${NC}"
 echo -e "🎉 INSTALLATION ABGESCHLOSSEN!"
-echo -e "📍 URL: http://$DOMAIN"
+echo -e "📍 URL: http://$DOMAIN (Lokal)"
 echo -e "👤 Login: admin / mpipwmkbe3521!"
-echo -e "\nNächster Schritt für den Cloudflare Tunnel:"
-echo -e "1. cloudflared tunnel login"
-echo -e "2. cloudflared tunnel create mein-tunnel"
+echo -e "\nDu kannst das Portal jetzt über Nginx oder einen eigenen Tunnel aufrufen."
 echo -e "${BLUE}==========================================================================${NC}"
