@@ -10,7 +10,9 @@
 set -e
 
 # --- KONFIGURATION (Hier anpassen) ---
-DOMAIN="it-portal.deine-domain.com"
+# Versuche die lokale IP automatisch zu erkennen
+LOCAL_IP=$(hostname -I | awk '{print $1}')
+DOMAIN=${1:-$LOCAL_IP} # Nutze Parameter 1 oder die erkannte IP
 DB_NAME="itportal"
 DB_USER="postgres"
 DB_PASS="password"
@@ -19,9 +21,10 @@ PROJECT_DIR="/var/www/it-portal"
 
 GREEN='\033[0;32m'
 BLUE='\033[0;34m'
+RED='\033[0;31m'
 NC='\033[0m'
 
-echo -e "${BLUE}🚀 Starte IT Portal Ultimate Installation...${NC}"
+echo -e "${BLUE}🚀 Starte IT Portal Ultimate Installation (IP: $DOMAIN)...${NC}"
 
 # 1. System Update & Dependencies
 echo -e "${GREEN}[1/7] System-Update und Abhängigkeiten...${NC}"

@@ -5,13 +5,9 @@
 import { Router, Request, Response } from 'express';
 import bcrypt from 'bcryptjs';
 import prisma from '../lib/prisma';
-import {
-    signAccessToken,
-    signRefreshToken,
-    refreshTokens,
-    getUserPermissions,
-} from '../lib/jwt';
+import { signAccessToken, signRefreshToken, refreshTokens, getUserPermissions } from '../lib/jwt';
 import { authenticate } from '../middleware/auth';
+import { logEvent } from '../lib/audit';
 
 const router = Router();
 
@@ -19,7 +15,7 @@ const COOKIE_OPTIONS = {
     httpOnly: true,     // JavaScript kann nicht drauf zugreifen (XSS-Schutz)
     secure: process.env.NODE_ENV === 'production',
     sameSite: 'lax' as const,
-    maxAge: 7 * 24 * 60 * 60 * 1000, // 7 Tage
+    maxAge: 60 * 60 * 1000, // 1 Stunde
 };
 
 // POST /api/auth/login
@@ -75,6 +71,8 @@ router.post('/login', async (req: Request, res: Response) => {
         // Refresh-Token als httpOnly Cookie setzen
         res.cookie('refreshToken', refreshToken, COOKIE_OPTIONS);
 
+        await logEvent({ user: { userId: user.id, username: user.username }, ip: req.ip }, 'LOGIN', 'System');
+
         console.log(`✅ Login erfolgreich für "${username}"`);
         res.json({
             accessToken,
@@ -126,6 +124,7 @@ router.post('/logout', authenticate, async (req: Request, res: Response) => {
             // Refresh-Token aus der DB löschen
             await prisma.refreshToken.deleteMany({ where: { token: refreshToken } });
         }
+        await logEvent(req, 'LOGOUT', 'System');
         res.clearCookie('refreshToken');
         res.json({ message: 'Erfolgreich abgemeldet' });
     } catch {
@@ -201,6 +200,8 @@ router.post('/change-password', authenticate, async (req: Request, res: Response
                 requirePasswordChange: false
             }
         });
+
+        await logEvent(req, 'CHANGE_PASSWORD', 'Benutzer-Konto');
 
         res.json({ message: 'Passwort erfolgreich geändert' });
     } catch (err) {

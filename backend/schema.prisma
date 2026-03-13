@@ -48,7 +48,21 @@ model User {
   roleId            String?
   userPermissions   UserPermission[]   // Individuelle Berechtigungen
   toolAccess        ToolUserAccess[]   // Direkter Zugriff auf Tools
+  auditLogs         AuditLog[]
   refreshTokens     RefreshToken[]
+}
+
+// System Audit Logs (Aktivitätsprotokoll)
+model AuditLog {
+  id        String   @id @default(uuid())
+  timestamp DateTime @default(now())
+  userId    String?
+  username  String?
+  action    String   // e.g., "LOGIN", "LOGOUT", "UPDATE_SETTINGS", "ACCESS_TOOL", "CREATE_USER"
+  resource  String?  // e.g., "Tool Name", "User Name", "Setting Key"
+  details   String?  // JSON string or description
+  ipAddress String?
+  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
 }
 
 // Rollenmodell (z.B. "Admin", "IT-Team", "Standard-User")

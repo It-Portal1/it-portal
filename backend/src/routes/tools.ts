@@ -11,6 +11,7 @@ import DOMPurify from 'dompurify';
 import prisma from '../lib/prisma';
 import { authenticate, optionalAuthenticate, requirePermission } from '../middleware/auth';
 import { Permission, ToolType, ToolVisibility } from '@prisma/client';
+import { logEvent } from '../lib/audit';
 
 const router = Router();
 // router.use(authenticate); // Nicht mehr global, da GET /tools öffentlich sein soll
@@ -185,6 +186,7 @@ router.post(
             if (slug.endsWith('-html')) slug = slug.slice(0, -5);
 
             const tool = await prisma.tool.create({
+                // ... (rest of create logic)
                 data: {
                     name,
                     slug,
@@ -206,6 +208,8 @@ router.post(
                 },
                 include: { roleAccess: true, userAccess: true },
             });
+
+            await logEvent(req, 'CREATE_TOOL', name, { type });
 
             res.status(201).json(tool);
         } catch (err) {
@@ -281,6 +285,7 @@ router.put(
             }
 
             const tool = await prisma.tool.update({
+                // ... (rest of update logic)
                 where: { id: req.params.id },
                 data: {
                     ...(name && { name }),
@@ -294,6 +299,8 @@ router.put(
                 },
                 include: { roleAccess: true, userAccess: true },
             });
+
+            await logEvent(req, 'UPDATE_TOOL', tool.name);
 
             res.json(tool);
         } catch {
@@ -324,6 +331,7 @@ router.delete(
             }
 
             await prisma.tool.delete({ where: { id: req.params.id } });
+            await logEvent(req, 'DELETE_TOOL', tool.name);
             res.json({ message: 'Tool gelöscht' });
         } catch {
             res.status(500).json({ error: 'Tool konnte nicht gelöscht werden' });
@@ -363,6 +371,10 @@ router.get('/:idOrSlug', optionalAuthenticate, async (req: Request, res: Respons
         }
 
         const hasAccess = await canUserAccessTool(tool, userId, roleId, isAdmin);
+
+        if (hasAccess && userId) {
+            await logEvent(req, 'ACCESS_TOOL', tool.name);
+        }
 
         // Falls restricted, sensible Daten entfernen
         const { filePath: _, ...safeTool } = tool;

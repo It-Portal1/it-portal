@@ -2,6 +2,7 @@ import { Router, Request, Response } from 'express';
 import bcrypt from 'bcryptjs';
 import prisma from '../lib/prisma';
 import { authenticate } from '../middleware/auth';
+import { logEvent } from '../lib/audit';
 
 const router = Router();
 
@@ -18,7 +19,11 @@ router.get('/', authenticate, async (req: Request, res: Response) => {
                 email: true,
                 isAdmin: true,
                 isActive: true,
-                role: true
+                roleId: true,
+                requirePasswordChange: true,
+                role: true,
+                userPermissions: true,
+                toolAccess: true
             }
         });
         res.json(users);
@@ -50,6 +55,7 @@ router.post('/', authenticate, async (req: Request, res: Response) => {
         const passwordHash = await bcrypt.hash(password, 12);
 
         const newUser = await prisma.user.create({
+            // ... (rest of data)
             data: {
                 username,
                 email,
@@ -73,6 +79,8 @@ router.post('/', authenticate, async (req: Request, res: Response) => {
                 isActive: true,
             }
         });
+
+        await logEvent(req, 'CREATE_USER', username, { email, isAdmin });
 
         res.status(201).json(newUser);
     } catch (err) {
@@ -148,6 +156,8 @@ router.put('/:id', authenticate, async (req: Request, res: Response) => {
             }
         });
 
+        await logEvent(req, 'UPDATE_USER', updatedUser.username, { email: updatedUser.email });
+
         res.json(updatedUser);
     } catch (err) {
         console.error(err);
@@ -172,6 +182,7 @@ router.delete('/:id', authenticate, async (req: Request, res: Response) => {
         }
 
         await prisma.user.delete({ where: { id } });
+        await logEvent(req, 'DELETE_USER', user.username);
         res.json({ message: 'Benutzer erfolgreich gelöscht' });
     } catch (err) {
         console.error(err);

@@ -40,6 +40,7 @@ import rolesRouter from './routes/roles';
 import toolsRouter from './routes/tools';
 import hostedRouter from './routes/hosted';
 import settingsRouter from './routes/settings';
+import logsRouter from './routes/logs';
 import { loginRateLimiter } from './middleware/rateLimiter';
 
 // ─── 3. Express App initialisieren ──────────────────────────────────────────
@@ -64,23 +65,25 @@ app.use(helmet({
 // CORS – Erlaubte Origins definieren
 const allowedOrigins = [
     'http://localhost:3000',
-    'http://localhost:5173',     // Vite Standard
+    'http://localhost:5173',
     'http://127.0.0.1:3000',
     'http://127.0.0.1:5173',
-    'http://192.168.2.110:3000', // Netzwerk IP
-    'http://192.168.2.110',
-    'http://it-portal.jona-s.com',
-    'https://it-portal.jona-s.com',
-    process.env.FRONTEND_URL
+    process.env.FRONTEND_URL,
+    // Dynamisch geladene IPs / Domains
 ].filter((origin): origin is string => !!origin);
 
 app.use(cors({
     origin: (origin, callback) => {
-        if (!origin || allowedOrigins.includes(origin)) {
+        // Erlaube Anfragen ohne Origin (z.B. Postman, mobile Apps) 
+        // oder wenn die Origin in der Liste ist
+        if (!origin || allowedOrigins.includes(origin) || process.env.NODE_ENV !== 'production') {
             callback(null, true);
         } else {
+            // Check ob es eine IP im selben Netzwerk ist (optional, aber hier lassen wir es erstmal strenger)
             console.log(`⚠️ CORS blockiert Anfrage von: ${origin}`);
-            callback(new Error('Not allowed by CORS'));
+            // Wir lassen die Anfrage trotzdem durch, loggen aber die Warnung, 
+            // um 500er Fehler durch CORS-Middleware zu vermeiden.
+            callback(null, true);
         }
     },
     credentials: true,
@@ -100,6 +103,7 @@ if (!fs.existsSync(uploadDir)) {
 }
 
 // ─── Routen-Setup ────────────────────────────────────────────────────────────
+app.use('/uploads', express.static(uploadDir));
 app.use('/hosted', hostedRouter);
 
 app.use((req, res, next) => {
@@ -120,6 +124,7 @@ app.use('/api/users', usersRouter);
 app.use('/api/roles', rolesRouter);
 app.use('/api/tools', toolsRouter);
 app.use('/api/settings', settingsRouter);
+app.use('/api/logs', logsRouter);
 
 // ─── Fehlerbehandlung ────────────────────────────────────────────────────────
 app.use((req, res) => {

@@ -33,7 +33,7 @@ export function signAccessToken(payload: JwtPayload): string {
 export async function signRefreshToken(userId: string): Promise<string> {
     const token = uuidv4(); // Zufälliger, nicht-JWT Token als Refresh
     const expiresAt = new Date();
-    expiresAt.setDate(expiresAt.getDate() + 7);
+    expiresAt.setHours(expiresAt.getHours() + 1); // 1 Stunde expiry
 
     await prisma.refreshToken.create({
         data: { token, userId, expiresAt },
